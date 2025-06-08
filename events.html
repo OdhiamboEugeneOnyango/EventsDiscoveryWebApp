@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Events - EventHub</title>
+    <link rel="stylesheet" href="events.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">EventHub</div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="#" class="active">Events</a></li>
+                <li><a href="#venues">Venues</a></li>
+                <li><a href="#about">About</a></li>
+            </ul>
+            <div class="auth-buttons">
+                <a href="login.html" class="btn btn-secondary">Login</a>
+                <a href="signUp.html" class="btn btn-primary">Sign Up</a>
+                 <a href="profile.html" class="btn btn-primary">Profile</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Events Discovery Section -->
+        <section class="events-hero">
+            <div class="container">
+                <h1>Discover Events</h1>
+                <p>Find amazing events happening around you</p>
+            </div>
+        </section>
+
+        <!-- Search & Filters -->
+        <section class="search-section">
+            <div class="container">
+                <div class="search-form">
+                    <input type="text" class="search-input" placeholder="Search for events, artists, venues..." id="searchInput">
+                    <button class="search-btn" onclick="performSearch()">🔍 Search</button>
+                </div>
+                
+                <div class="filters">
+                    <div class="filter-group">
+                        <label for="category">Category</label>
+                        <select id="category">
+                            <option value="">All Categories</option>
+                            <option value="music">Music</option>
+                            <option value="sports">Sports</option>
+                            <option value="arts">Arts & Culture</option>
+                            <option value="food">Food & Drink</option>
+                            <option value="tech">Technology</option>
+                            <option value="business">Business</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="location">Location</label>
+                        <select id="location">
+                            <option value="">All Locations</option>
+                            <option value="nairobi">Nairobi</option>
+                            <option value="mombasa">Mombasa</option>
+                            <option value="kisumu">Kisumu</option>
+                            <option value="nakuru">Nakuru</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="date">Date</label>
+                        <input type="date" id="date">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="price">Price Range</label>
+                        <select id="price">
+                            <option value="">Any Price</option>
+                            <option value="free">Free</option>
+                            <option value="0-1000">KSH 0 - 1,000</option>
+                            <option value="1000-5000">KSH 1,000 - 5,000</option>
+                            <option value="5000+">KSH 5,000+</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="view-toggles">
+                    <button class="toggle-btn active" onclick="toggleView('grid')" id="gridView">📊 Grid</button>
+                    <button class="toggle-btn" onclick="toggleView('list')" id="listView">📋 List</button>
+                    <button class="toggle-btn" onclick="toggleMap()" id="mapToggle">📍 Map</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Map Section -->
+        <section class="map-section" id="mapSection">
+            <div class="container">
+                <div class="map-placeholder">
+                    <h3>Interactive Event Map</h3>
+                    <p>📍 Events marked on the map</p>
+                    <div class="map-container">
+                        <div class="map-markers" id="mapMarkers">
+                            <!-- Map markers will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Events Results -->
+        <section class="results-section">
+            <div class="container">
+                <div class="results-header">
+                    <h2 id="resultsTitle">All Events</h2>
+                    <div class="results-count" id="resultsCount">Loading...</div>
+                </div>
+                
+                <div class="event-grid" id="eventGrid">
+                    <!-- Events will be populated here -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Event Details Modal -->
+    <div class="modal" id="eventModal">
+        <div class="modal-content large-modal">
+            <div class="modal-header">
+                <h2 id="modalEventTitle">Event Title</h2>
+                <span class="close-modal" onclick="closeEventModal()">&times;</span>
+            </div>
+            
+            <div class="modal-body">
+                <div class="event-detail-layout">
+                    <div class="event-main-info">
+                        <div class="event-image-large">
+                            <span id="modalEventIcon">🎵</span>
+                        </div>
+                        
+                        <div class="event-details-content">
+                            <div class="event-meta">
+                                <div class="meta-item">
+                                    <span class="meta-icon">📅</span>
+                                    <div>
+                                        <strong>Date & Time</strong>
+                                        <p id="modalEventDate"></p>
+                                    </div>
+                                </div>
+                                
+                                <div class="meta-item">
+                                    <span class="meta-icon">📍</span>
+                                    <div>
+                                        <strong>Location</strong>
+                                        <p id="modalEventLocation"></p>
+                                        <p id="modalEventVenue"></p>
+                                    </div>
+                                </div>
+                                
+                                <div class="meta-item">
+                                    <span class="meta-icon">💰</span>
+                                    <div>
+                                        <strong>Price</strong>
+                                        <p id="modalEventPrice"></p>
+                                    </div>
+                                </div>
+                                
+                                <div class="meta-item">
+                                    <span class="meta-icon">👥</span>
+                                    <div>
+                                        <strong>Organizer</strong>
+                                        <p id="modalEventOrganizer"></p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="event-description">
+                                <h3>About This Event</h3>
+                                <p id="modalEventDescription"></p>
+                            </div>
+                            
+                            <!-- Safety Information -->
+                            <div class="safety-info">
+                                <h3>🛡️ Safety Information</h3>
+                                <div class="safety-rating">
+                                    <span>Venue Safety Rating: </span>
+                                    <div class="rating-stars" id="safetyRating">
+                                        ⭐⭐⭐⭐⭐
+                                    </div>
+                                </div>
+                                <div class="safety-measures" id="safetyMeasures">
+                                    <p>• Security personnel on-site</p>
+                                    <p>• Emergency exits clearly marked</p>
+                                    <p>• First aid station available</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="event-sidebar">
+                        <!-- Ticket Purchase -->
+                        <div class="ticket-section">
+                            <h3>Get Your Tickets</h3>
+                            <div class="ticket-options" id="ticketOptions">
+                                <div class="ticket-type">
+                                    <div class="ticket-info">
+                                        <strong>General Admission</strong>
+                                        <span class="ticket-price" id="ticketPrice">KSH 2,500</span>
+                                    </div>
+                                    <div class="quantity-selector">
+                                        <button onclick="changeQuantity(-1)">-</button>
+                                        <span id="ticketQuantity">1</span>
+                                        <button onclick="changeQuantity(1)">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="total-price">
+                                <strong>Total: <span id="totalPrice">KSH 2,500</span></strong>
+                            </div>
+                            
+                            <div class="event-actions">
+                                <button class="btn btn-primary full-width" onclick="purchaseTicket()">
+                                    🎫 Buy Tickets
+                                </button>
+                                <div class="action-buttons">
+                                    <button class="action-btn" onclick="toggleInterest()" id="interestBtn">
+                                        ❤️ Interested
+                                    </button>
+                                    <button class="action-btn" onclick="toggleGoing()" id="goingBtn">
+                                        ✅ Going
+                                    </button>
+                                    <button class="action-btn" onclick="saveEvent()" id="saveBtn">
+                                        🔖 Save
+                                    </button>
+                                    <button class="action-btn" onclick="shareEvent()">
+                                        📤 Share
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Event Group Chat -->
+                        <div class="group-section">
+                            <h3>💬 Event Discussion</h3>
+                            <p>Join the conversation with other attendees</p>
+                            <button class="btn btn-secondary full-width" onclick="joinGroup()">
+                                Join Group Chat
+                            </button>
+                            <div class="group-stats">
+                                <span id="groupMembers">127 members</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Artist/Organizer Info -->
+                        <div class="organizer-section">
+                            <h3>👤 Organizer</h3>
+                            <div class="organizer-card">
+                                <div class="organizer-avatar">👤</div>
+                                <div class="organizer-info">
+                                    <strong id="organizerName">Event Organizer</strong>
+                                    <p id="organizerBio">Professional event organizer</p>
+                                    <div class="organizer-rating">
+                                        ⭐⭐⭐⭐⭐ (4.8/5)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Reviews Section -->
+                <div class="reviews-section">
+                    <h3>📝 Reviews & Ratings</h3>
+                    <div class="reviews-summary">
+                        <div class="average-rating">
+                            <span class="rating-number">4.5</span>
+                            <div class="rating-stars">⭐⭐⭐⭐⭐</div>
+                            <span class="rating-count">(89 reviews)</span>
+                        </div>
+                    </div>
+                    
+                    <div class="reviews-list" id="reviewsList">
+                        <div class="review-item">
+                            <div class="review-header">
+                                <strong>John D.</strong>
+                                <span class="review-rating">⭐⭐⭐⭐⭐</span>
+                                <span class="review-date">2 days ago</span>
+                            </div>
+                            <p class="review-text">"Amazing event! Great organization and fantastic music. Highly recommended!"</p>
+                        </div>
+                        
+                        <div class="review-item">
+                            <div class="review-header">
+                                <strong>Sarah M.</strong>
+                                <span class="review-rating">⭐⭐⭐⭐</span>
+                                <span class="review-date">1 week ago</span>
+                            </div>
+                            <p class="review-text">"Good event overall. Venue was nice but could have been better organized."</p>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-secondary" onclick="showAllReviews()">View All Reviews</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Purchase Modal -->
+    <div class="modal" id="purchaseModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Complete Purchase</h2>
+                <span class="close-modal" onclick="closePurchaseModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="purchase-summary">
+                    <h3>Order Summary</h3>
+                    <div class="purchase-item">
+                        <span id="purchaseEventTitle">Event Title</span>
+                        <span id="purchaseQuantity">1x</span>
+                        <span id="purchaseTotal">KSH 2,500</span>
+                    </div>
+                </div>
+                
+                <div class="payment-options">
+                    <h3>Payment Method</h3>
+                    <div class="payment-methods">
+                        <label class="payment-option">
+                            <input type="radio" name="payment" value="mpesa" checked>
+                            <span class="payment-label">📱 M-Pesa</span>
+                        </label>
+                        <label class="payment-option">
+                            <input type="radio" name="payment" value="card">
+                            <span class="payment-label">💳 Credit/Debit Card</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="payment-form" id="mpesaForm">
+                    <div class="form-group">
+                        <label for="mpesaNumber">M-Pesa Number</label>
+                        <input type="tel" id="mpesaNumber" placeholder="254712345678" required>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary full-width" onclick="processPayment()">
+                    Complete Purchase
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 EventHub. All rights reserved. | <a href="#lost-found">Lost & Found</a> | <a href="#safety">Safety Center</a></p>
+        </div>
+    </footer>
+
+    <script src="events.js"></script>
+</body>
+</html>
