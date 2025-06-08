@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - EventHub</title>
+    <link rel="stylesheet" href="profile.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">EventHub</div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="events.html">Events</a></li>
+                <li><a href="#venues">Venues</a></li>
+                <li><a href="#about">About</a></li>
+            </ul>
+            <div class="auth-buttons">
+                <a href="#" class="btn btn-primary active">Profile</a>
+                <a href="#" class="btn btn-secondary" onclick="logout()">Logout</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <!-- Profile Header -->
+            <section class="profile-header">
+                <div class="profile-info">
+                    <div class="profile-avatar" onclick="uploadAvatar()">
+                        👤
+                        <div class="avatar-upload">📷</div>
+                    </div>
+                    <div class="profile-details">
+                        <h1 id="userName">John Doe</h1>
+                        <p id="userEmail">john.doe@email.com</p>
+                        <p id="userLocation">📍 Nairobi, Kenya</p>
+                        <div class="profile-stats">
+                            <div class="stat-item">
+                                <div class="stat-number" id="eventsAttended">27</div>
+                                <div class="stat-label">Events Attended</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number" id="eventsInterested">15</div>
+                                <div class="stat-label">Interested</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number" id="reviewsWritten">12</div>
+                                <div class="stat-label">Reviews</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab Navigation -->
+            <nav class="tab-nav">
+                <button class="tab-btn active" onclick="showTab('profile')">👤 Profile</button>
+                <button class="tab-btn" onclick="showTab('events')">🎫 My Events</button>
+                <button class="tab-btn" onclick="showTab('preferences')">⚙️ Preferences</button>
+                <button class="tab-btn" onclick="showTab('security')">🔒 Security</button>
+                <button class="tab-btn" onclick="showTab('privacy')">🛡️ Privacy</button>
+            </nav>
+
+            <!-- Profile Tab -->
+            <div class="tab-content active" id="profileTab">
+                <div class="profile-form">
+                    <h2>Edit Profile Information</h2>
+                    <form id="profileForm">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="firstName">First Name</label>
+                                <input type="text" id="firstName" value="John" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="lastName">Last Name</label>
+                                <input type="text" id="lastName" value="Doe" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email Address</label>
+                                <input type="email" id="email" value="john.doe@email.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Phone Number</label>
+                                <input type="tel" id="phone" value="+254712345678">
+                            </div>
+                            <div class="form-group">
+                                <label for="location">Location</label>
+                                <select id="location">
+                                    <option value="nairobi" selected>Nairobi</option>
+                                    <option value="mombasa">Mombasa</option>
+                                    <option value="kisumu">Kisumu</option>
+                                    <option value="nakuru">Nakuru</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="dateOfBirth">Date of Birth</label>
+                                <input type="date" id="dateOfBirth" value="1990-01-15">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="bio">Bio</label>
+                            <textarea id="bio" placeholder="Tell us about yourself...">Event enthusiast who loves discovering new experiences and meeting people with similar interests.</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Events Tab -->
+            <div class="tab-content" id="eventsTab">
+                <div class="profile-form">
+                    <h2>My Events</h2>
+                    
+                    <div style="margin-bottom: 2rem;">
+                        <button class="btn btn-secondary" onclick="filterEvents('all')" id="filterAll">All Events</button>
+                        <button class="btn btn-secondary" onclick="filterEvents('upcoming')" id="filterUpcoming">Upcoming</button>
+                        <button class="btn btn-secondary" onclick="filterEvents('attended')" id="filterAttended">Attended</button>
+                        <button class="btn btn-secondary" onclick="filterEvents('interested')" id="filterInterested">Interested</button>
+                    </div>
+
+                    <div class="event-grid" id="userEventsGrid">
+                        <!-- User events will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preferences Tab -->
+            <div class="tab-content" id="preferencesTab">
+                <div class="profile-form">
+                    <h2>Event Preferences</h2>
+                    <p style="margin-bottom: 2rem; color: #666;">Select your favorite event categories to get personalized recommendations.</p>
+                    
+                    <div class="preferences-grid" id="preferencesGrid">
+                        <!-- Preferences will be populated here -->
+                    </div>
+                    
+                    <div style="margin-top: 2rem;">
+                        <h3>Notification Preferences</h3>
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch active" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <span>Email notifications for recommended events</span>
+                        </div>
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch active" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <span>SMS notifications for booked events</span>
+                        </div>
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <span>Push notifications for nearby events</span>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary" style="margin-top: 2rem;">💾 Save Preferences</button>
+                </div>
+            </div>
+
+            <!-- Security Tab -->
+            <div class="tab-content" id="securityTab">
+                <div class="security-section">
+                    <h2>Security Settings</h2>
+                    
+                    <div class="security-item">
+                        <div>
+                            <strong>Change Password</strong>
+                            <p style="color: #666; font-size: 0.9rem;">Update your account password</p>
+                        </div>
+                        <button class="btn btn-secondary" onclick="changePassword()">Change</button>
+                    </div>
+                    
+                    <div class="security-item">
+                        <div>
+                            <strong>Two-Factor Authentication</strong>
+                            <p style="color: #666; font-size: 0.9rem;">Add an extra layer of security</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="setup2FA()">Enable</button>
+                    </div>
+                    
+                    <div class="security-item">
+                        <div>
+                            <strong>Login Sessions</strong>
+                            <p style="color: #666; font-size: 0.9rem;">Manage your active sessions</p>
+                        </div>
+                        <button class="btn btn-secondary" onclick="manageSessions()">Manage</button>
+                    </div>
+                    
+                    <div class="security-item">
+                        <div>
+                            <strong>Download Your Data</strong>
+                            <p style="color: #666; font-size: 0.9rem;">Download a copy of your account data</p>
+                        </div>
+                        <button class="btn btn-secondary" onclick="downloadData()">Download</button>
+                    </div>
+                    
+                    <div class="security-item">
+                        <div>
+                            <strong style="color: #e74c3c;">Delete Account</strong>
+                            <p style="color: #666; font-size: 0.9rem;">Permanently delete your account</p>
+                        </div>
+                        <button class="btn btn-danger" onclick="deleteAccount()">Delete</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Privacy Tab -->
+            <div class="tab-content" id="privacyTab">
+                <div class="profile-form">
+                    <h2>Privacy Settings</h2>
+                    
+                    <h3>Profile Visibility</h3>
+                    <div class="privacy-toggle">
+                        <div class="toggle-switch active" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                        <span>Make my profile public</span>
+                    </div>
+                    <div class="privacy-toggle">
+                        <div class="toggle-switch active" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                        <span>Show my attended events</span>
+                    </div>
+                    <div class="privacy-toggle">
+                        <div class="toggle-switch" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                        <span>Allow others to find me by email</span>
+                    </div>
+                    
+                    <h3 style="margin-top: 2rem;">Data Usage</h3>
+                    <div class="privacy-toggle">
+                        <div class="toggle-switch active" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                        <span>Use my data to improve recommendations</span>
+                    </div>
+                    <div class="privacy-toggle">
+                        <div class="toggle-switch" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                        <span>Share anonymized data for analytics</span>
+                    </div>
+                    
+                    <h3 style="margin-top: 2rem;">Communication</h3>
+                    <div class="privacy-toggle">
+                        <div class="toggle-switch active" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                        <span>Allow event organizers to contact me</span>
+                    </div>
+                    <div class="privacy-toggle">
+                        <div class="toggle-switch" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                        <span>Receive marketing emails</span>
+                    </div>
+                    
+                    <button class="btn btn-primary" style="margin-top: 2rem;">💾 Save Privacy Settings</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer style="background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); color: white; padding: 2rem 0; text-align: center; margin-top: 3rem;">
+        <div class="container">
+            <p>&copy; 2025 EventHub. All rights reserved. | <a href="#lost-found" style="color: #667eea;">Lost & Found</a> | <a href="#safety" style="color: #667eea;">Safety Center</a></p>
+        </div>
+    </footer>
+
+     <script src="profile.js"></script>
+</body>
+</html>
