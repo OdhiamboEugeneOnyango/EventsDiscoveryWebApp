@@ -81,17 +81,16 @@ function performSearch() {
 
 // Filter by price range
 function filterByPrice(eventPrice, priceRange) {
-    if (priceRange === 'free') {
-        return eventPrice.toLowerCase().includes('free');
-    }
-    const price = parseInt(eventPrice.replace(/[^\d]/g, '')) || 0;
+    const price = Number(eventPrice) || 0;
     switch(priceRange) {
+        case 'free': return price === 0;
         case '0-1000': return price >= 0 && price <= 1000;
         case '1000-5000': return price > 1000 && price <= 5000;
         case '5000+': return price > 5000;
         default: return true;
     }
 }
+
 
 // Display events
 function displayEvents(events) {

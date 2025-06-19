@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safety & Community Hub</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.js"></script>
+    <link rel="stylesheet" href="safezone.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Safety & Community Hub</h1>
+            <p>Your comprehensive platform for venue safety, incident reporting, and community coordination</p>
+        </div>
+        
+        <div class="nav-tabs">
+            <button class="tab-btn active" data-tab="venues">
+                <i data-lucide="shield-check"></i>
+                Venue Safety
+            </button>
+            <button class="tab-btn" data-tab="incidents">
+                <i data-lucide="alert-triangle"></i>
+                Report Incident
+            </button>
+            <button class="tab-btn" data-tab="lost-found">
+                <i data-lucide="search"></i>
+                Lost & Found
+            </button>
+            <button class="tab-btn" data-tab="guidelines">
+                <i data-lucide="book-open"></i>
+                Guidelines
+            </button>
+        </div>
+        
+        <!-- Venue Safety Tab -->
+        <div class="tab-content active" id="venues">
+            <div class="section-header">
+                <i data-lucide="shield-check" size="32"></i>
+                <h2>Venue Safety Ratings</h2>
+            </div>
+            
+            <div class="venue-grid" id="venueGrid">
+                <!-- Venues will be populated by JavaScript -->
+            </div>
+            
+            <div class="form-section">
+                <h3>Rate a Venue</h3>
+                <form id="venueRatingForm">
+                    <div class="form-group">
+                        <label for="venueName">Venue Name</label>
+                        <input type="text" id="venueName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="venueRating">Safety Rating</label>
+                        <select id="venueRating" required>
+                            <option value="">Select Rating</option>
+                            <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
+                            <option value="4">⭐⭐⭐⭐ Good</option>
+                            <option value="3">⭐⭐⭐ Average</option>
+                            <option value="2">⭐⭐ Poor</option>
+                            <option value="1">⭐ Very Poor</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="venueComments">Comments</label>
+                        <textarea id="venueComments" rows="3" placeholder="Share your safety observations..."></textarea>
+                    </div>
+                    <button type="submit" class="btn">
+                        <i data-lucide="plus"></i>
+                        Submit Rating
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Incident Reporting Tab -->
+        <div class="tab-content" id="incidents">
+            <div class="section-header">
+                <i data-lucide="alert-triangle" size="32"></i>
+                <h2>Incident Reporting</h2>
+            </div>
+            
+            <div class="alert">
+                <i data-lucide="info" class="alert-icon"></i>
+                <div>
+                    <strong>Emergency Situations:</strong> For immediate emergencies, contact local emergency services directly. Use this form for non-emergency incident documentation.
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h3>Report New Incident</h3>
+                <form id="incidentForm">
+                    <div class="form-group">
+                        <label for="incidentType">Incident Type</label>
+                        <select id="incidentType" required>
+                            <option value="">Select Type</option>
+                            <option value="safety">Safety Concern</option>
+                            <option value="harassment">Harassment</option>
+                            <option value="theft">Theft/Security</option>
+                            <option value="medical">Medical Emergency</option>
+                            <option value="facility">Facility Issue</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="incidentLocation">Location</label>
+                        <input type="text" id="incidentLocation" placeholder="Venue name or specific location" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="incidentDate">Date & Time</label>
+                        <input type="datetime-local" id="incidentDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="incidentDescription">Description</label>
+                        <textarea id="incidentDescription" rows="4" placeholder="Describe what happened..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="reporterContact">Your Contact (Optional)</label>
+                        <input type="text" id="reporterContact" placeholder="Email or phone for follow-up">
+                    </div>
+                    <button type="submit" class="btn">
+                        <i data-lucide="send"></i>
+                        Submit Report
+                    </button>
+                </form>
+            </div>
+            
+            <div class="section-header">
+                <i data-lucide="list" size="24"></i>
+                <h3>Recent Incidents</h3>
+            </div>
+            
+            <div class="incident-list" id="incidentList">
+                <!-- Incidents will be populated by JavaScript -->
+            </div>
+        </div>
+        
+        <!-- Lost & Found Tab -->
+        <div class="tab-content" id="lost-found">
+            <div class="section-header">
+                <i data-lucide="search" size="32"></i>
+                <h2>Lost & Found</h2>
+            </div>
+            
+            <div class="form-section">
+                <h3>Report Lost/Found Item</h3>
+                <form id="lostFoundForm">
+                    <div class="form-group">
+                        <label for="itemStatus">Status</label>
+                        <select id="itemStatus" required>
+                            <option value="">Select Status</option>
+                            <option value="lost">Lost Item</option>
+                            <option value="found">Found Item</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="itemDescription">Item Description</label>
+                        <input type="text" id="itemDescription" placeholder="e.g., Blue iPhone 14, Black leather wallet" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="itemLocation">Location</label>
+                        <input type="text" id="itemLocation" placeholder="Where was it lost/found?" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="itemDate">Date</label>
+                        <input type="date" id="itemDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="itemContact">Contact Information</label>
+                        <input type="text" id="itemContact" placeholder="Email or phone number" required>
+                    </div>
+                    <button type="submit" class="btn">
+                        <i data-lucide="plus"></i>
+                        Submit Listing
+                    </button>
+                </form>
+            </div>
+            
+            <div class="section-header">
+                <i data-lucide="package" size="24"></i>
+                <h3>Current Listings</h3>
+            </div>
+            
+            <div class="lost-found-grid" id="lostFoundGrid">
+                <!-- Lost & Found items will be populated by JavaScript -->
+            </div>
+        </div>
+        
+        <!-- Guidelines Tab -->
+        <div class="tab-content" id="guidelines">
+            <div class="section-header">
+                <i data-lucide="book-open" size="32"></i>
+                <h2>Community Guidelines</h2>
+            </div>
+            
+            <div class="guidelines-section">
+                <h3>Safety Guidelines</h3>
+                <div class="guideline-item">
+                    <div class="guideline-icon">
+                        <i data-lucide="users"></i>
+                    </div>
+                    <div>
+                        <h4>Respect & Inclusion</h4>
+                        <p>Treat all community members with respect regardless of background, identity, or beliefs. Harassment, discrimination, and hate speech are not tolerated.</p>
+                    </div>
+                </div>
+                
+                <div class="guideline-item">
+                    <div class="guideline-icon">
+                        <i data-lucide="shield"></i>
+                    </div>
+                    <div>
+                        <h4>Personal Safety</h4>
+                        <p>Stay aware of your surroundings, travel in groups when possible, and report suspicious activities immediately. Trust your instincts if something feels wrong.</p>
+                    </div>
+                </div>
+                
+                <div class="guideline-item">
+                    <div class="guideline-icon">
+                        <i data-lucide="phone"></i>
+                    </div>
+                    <div>
+                        <h4>Emergency Procedures</h4>
+                        <p>Know the location of emergency exits and contact information. In case of emergency, prioritize your safety and call appropriate emergency services.</p>
+                    </div>
+                </div>
+                
+                <div class="guideline-item">
+                    <div class="guideline-icon">
+                        <i data-lucide="eye"></i>
+                    </div>
+                    <div>
+                        <h4>Reporting</h4>
+                        <p>Report incidents promptly and accurately. Your reports help keep the community safe. Anonymous reporting is available for sensitive situations.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="guidelines-section">
+                <h3>Venue Guidelines</h3>
+                <div class="guideline-item">
+                    <div class="guideline-icon">
+                        <i data-lucide="clock"></i>
+                    </div>
+                    <div>
+                        <h4>Operating Hours</h4>
+                        <p>Respect venue operating hours and capacity limits. Arrive and depart at appropriate times to maintain good community relationships.</p>
+                    </div>
+                </div>
+                
+                <div class="guideline-item">
+                    <div class="guideline-icon">
+                        <i data-lucide="volume-x"></i>
+                    </div>
+                    <div>
+                        <h4>Noise Levels</h4>
+                        <p>Be mindful of noise levels, especially in residential areas. Follow local noise ordinances and be considerate of neighbors.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="emergency-contact">
+                <h3>Emergency Contacts</h3>
+                <div class="emergency-number">📞 Police Emergency: 999</div>
+                <div class="emergency-number">🚑 Medical Emergency: 999</div>
+                <div style="margin-top: 15px;">
+                    <div>🚔 Police Non-Emergency: 020 341 4000</div>
+                    <div>🏥 Ambulance Service: 020 272 2777</div>
+                    <div>🔥 Fire Department: 020 557 4444</div>
+                    <div>🚨 Disaster Operations: 020 2222181</div>
+                    <div>📞 Kenya Red Cross: 1199</div>
+                    <div>🆘 Gender Violence Recovery: 1195</div>
+                    <div>👮 Crime Stoppers: 0800 722 203</div>
+                </div>
+                <div style="margin-top: 15px; font-size: 0.9rem;">
+                    <div>📧 Community Safety: safety@community.ke</div>
+                    <div>📍 Location: Nairobi, Kenya</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="safezone.js"></script>
+</body>
+</html>

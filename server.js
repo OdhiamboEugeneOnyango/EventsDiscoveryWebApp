@@ -114,6 +114,25 @@ userSchema.methods.generateAuthToken = function() {
 
 const User = mongoose.model('User', userSchema);
 
+// Event Schema
+const eventSchema = new mongoose.Schema({
+    title: { type: String, required: true },
+    category: { type: String, required: true },
+    description: { type: String, required: true },
+    date: { type: String, required: true },
+    time: { type: String, required: true },
+    venue: { type: String, required: true },
+    location: { type: String, required: true },
+    capacity: { type: Number, required: true },
+    price: { type: Number, default: 0 },
+    status: { type: String, enum: ['active', 'draft', 'ended'], default: 'active' },
+    attendees: { type: Number, default: 0 },
+    revenue: { type: Number, default: 0 },
+    rating: { type: Number, default: 0 }
+}, { timestamps: true });
+
+const Event = mongoose.model('Event', eventSchema);
+
 // Validation middleware
 const validateSignupData = (req, res, next) => {
     const { firstName, lastName, email, phone, location, password, confirmPassword } = req.body;
@@ -335,6 +354,49 @@ app.post('/api/auth/login', validateLoginData, async (req, res) => {
             success: false,
             message: 'Server error. Please try again later.'
         });
+    }
+});
+
+// Get all events
+app.get('/api/events', async (req, res) => {
+    try {
+        const events = await Event.find().sort({ date: 1 });
+        res.json({ success: true, events });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to fetch events' });
+    }
+});
+
+// Create event
+app.post('/api/events', async (req, res) => {
+    try {
+        const event = new Event(req.body);
+        await event.save();
+        res.status(201).json({ success: true, event });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+});
+
+// Update event
+app.put('/api/events/:id', async (req, res) => {
+    try {
+        const event = await Event.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+        res.json({ success: true, event });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+});
+
+// Delete event
+app.delete('/api/events/:id', async (req, res) => {
+    try {
+        const event = await Event.findByIdAndDelete(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+        res.json({ success: true, message: 'Event deleted successfully' });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
     }
 });
 

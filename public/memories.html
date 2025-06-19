@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Memories</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="memories.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <h1>My Event Memories</h1>
+            <p>Relive your amazing experiences and share your favorite moments</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Error Message -->
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <div class="upload-header">
+                <i class="fas fa-upload" style="color: #8b5cf6;"></i>
+                <h2>Add New Memory</h2>
+            </div>
+            
+            <div class="upload-form">
+                <div class="form-group">
+                    <select id="eventSelect">
+                        <option value="">Select an event</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <input type="text" id="captionInput" placeholder="Add a caption for your memory...">
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                <button id="uploadBtn" class="upload-btn">
+                    <i class="fas fa-upload"></i>
+                    <span>Upload Photos/Videos</span>
+                </button>
+                
+                <input type="file" id="fileInput" multiple accept="image/*,video/*" style="display: none;">
+                
+                <span style="color: #6b7280; font-size: 0.875rem;">
+                    Support: JPG, PNG, MP4, MOV (Max 10MB each)
+                </span>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            <p style="color: #6b7280;">Loading your memories...</p>
+        </div>
+
+        <!-- Memories Grid -->
+        <div id="memoriesGrid" class="memories-grid" style="display: none;"></div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <i class="fas fa-images"></i>
+            <h3>No memories yet</h3>
+            <p>Start uploading your event photos and videos to build your memory collection!</p>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modalOverlay" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle"></div>
+                <div class="modal-actions">
+                    <button class="delete-btn" id="deleteBtn">Delete</button>
+                    <button class="close-btn" id="closeBtn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-content">
+                <div class="modal-media" id="modalMedia"></div>
+                <div id="modalInfo"></div>
+            </div>
+        </div>
+    </div>
+
+   <script src="memories.js"></script>
+</body>
+</html>
