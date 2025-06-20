@@ -8,19 +8,38 @@
 </head>
 <body>
   <header><h1>Event Memories</h1></header>
-  <main>
+  <main class="container">
     <section class="upload-area">
       <h2>Upload Your Event Moments</h2>
       <form id="uploadForm">
-        <input type="file" name="media" accept="image/*,video/*" multiple />
-        <textarea placeholder="Write a caption..."></textarea>
+        <input type="file" name="media" accept="image/*,video/*" multiple required />
+        <textarea name="caption" placeholder="Write a caption..."></textarea>
         <button type="submit">Upload</button>
       </form>
     </section>
+
     <section class="media-gallery" id="mediaGallery">
-      <!-- Uploaded media displayed here -->
+      <!-- Media cards populated by JS -->
     </section>
   </main>
+
+  <template id="mediaCardTemplate">
+    <div class="media-card">
+      <div class="media-container"></div>
+      <p class="caption"></p>
+      <div class="reactions">
+        <button class="reaction">👍</button>
+        <button class="reaction">🔥</button>
+        <button class="reaction">😂</button>
+        <button class="reaction">💬</button>
+      </div>
+      <div class="comments">
+        <input type="text" placeholder="Add a comment..." class="comment-input" />
+        <ul class="comment-list"></ul>
+      </div>
+    </div>
+  </template>
+
   <script src="memories.js"></script>
 </body>
 </html>
