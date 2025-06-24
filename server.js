@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const Memory = require('./models/Memory');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
@@ -397,6 +398,55 @@ app.delete('/api/events/:id', async (req, res) => {
         res.json({ success: true, message: 'Event deleted successfully' });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
+    }
+});
+
+
+
+// Get all memories
+app.get('/api/memories', async (req, res) => {
+    try {
+        const memories = await Memory.find().sort({ createdAt: -1 });
+        res.json({ success: true, memories });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to fetch memories' });
+    }
+});
+
+// Toggle like
+app.post('/api/memories/:id/like', async (req, res) => {
+    try {
+        // Get token from header
+        const token = req.header('Authorization')?.replace('Bearer ', '');
+        if (!token) {
+            return res.status(401).json({ success: false, message: 'No token provided' });
+        }
+
+        // Verify token and get userId
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userId = decoded.userId;
+
+        const memory = await Memory.findById(req.params.id);
+        if (!memory) {
+            return res.status(404).json({ success: false, message: 'Memory not found' });
+        }
+
+        const hasLiked = memory.likedBy.includes(userId);
+
+        if (hasLiked) {
+            memory.likes -= 1;
+            memory.likedBy = memory.likedBy.filter(id => id !== userId);
+        } else {
+            memory.likes += 1;
+            memory.likedBy.push(userId);
+        }
+
+        await memory.save();
+
+        res.json({ success: true, likes: memory.likes });
+    } catch (err) {
+        console.error('Like toggle error:', err);
+        res.status(500).json({ success: false, message: 'Server error' });
     }
 });
 

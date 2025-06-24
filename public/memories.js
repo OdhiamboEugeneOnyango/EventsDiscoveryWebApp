@@ -190,33 +190,34 @@
 
             async handleLike(memoryId) {
                 try {
+                    const memoryIndex = this.memories.findIndex(m => m._id === memoryId);
+                    if (memoryIndex === -1) return;
+
+                    const memory = this.memories[memoryIndex];
+                    const hasLiked = memory._hasLiked || false;
+
                     const response = await fetch(`/api/memories/${memoryId}/like`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                        },
+                            'X-Action': hasLiked ? 'unlike' : 'like'
+                        }
                     });
 
-                    if (!response.ok) throw new Error('Failed to like memory');
+                    if (!response.ok) throw new Error('Failed to toggle like');
 
                     const result = await response.json();
-                    
-                    // Update memory in state
-                    const memoryIndex = this.memories.findIndex(m => m._id === memoryId);
-                    if (memoryIndex !== -1) {
-                        this.memories[memoryIndex].likes = result.likes;
-                        this.renderMemories();
-                    }
+
+                    // Update memory state
+                    this.memories[memoryIndex].likes = result.likes;
+                    this.memories[memoryIndex]._hasLiked = !hasLiked;  // toggle
+                    this.renderMemories();
+
                 } catch (error) {
-                    console.error('Error liking memory:', error);
-                    // Optimistic update fallback
-                    const memoryIndex = this.memories.findIndex(m => m._id === memoryId);
-                    if (memoryIndex !== -1) {
-                        this.memories[memoryIndex].likes = (this.memories[memoryIndex].likes || 0) + 1;
-                        this.renderMemories();
-                    }
+                    console.error('Error toggling like:', error);
                 }
             }
+
 
             async deleteMemory(memoryId) {
                 if (!confirm('Are you sure you want to delete this memory?')) return;
@@ -279,8 +280,8 @@
                             <div class="memory-caption">${memory.caption}</div>
                             <div class="memory-actions">
                                 <div class="action-buttons">
-                                    <button class="action-btn" onclick="app.handleLike('${memory._id}')">
-                                        <i class="fas fa-heart"></i>
+                                    <button class="action-btn ${memory._hasLiked ? 'liked' : ''}" onclick="app.handleLike('${memory._id}')">
+                                    <i class="fas fa-heart"></i>
                                         ${memory.likes || 0}
                                     </button>
                                     <button class="action-btn">
