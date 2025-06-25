@@ -133,6 +133,7 @@ const eventSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const Event = mongoose.model('Event', eventSchema);
+module.exports = { Event };
 
 // Validation middleware
 const validateSignupData = (req, res, next) => {
@@ -361,8 +362,15 @@ app.post('/api/auth/login', validateLoginData, async (req, res) => {
 // Get all events
 app.get('/api/events', async (req, res) => {
     try {
-        const events = await Event.find().sort({ date: 1 });
-        res.json({ success: true, events });
+        const events = await Event.find({ status: 'active' }).sort({ date: 1 });
+
+        // Map title ➝ name for the dropdown
+        const mappedEvents = events.map(event => ({
+            _id: event._id,
+            name: event.title
+        }));
+
+        res.json({ success: true, events: mappedEvents });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Failed to fetch events' });
     }
@@ -398,55 +406,6 @@ app.delete('/api/events/:id', async (req, res) => {
         res.json({ success: true, message: 'Event deleted successfully' });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
-    }
-});
-
-
-
-// Get all memories
-app.get('/api/memories', async (req, res) => {
-    try {
-        const memories = await Memory.find().sort({ createdAt: -1 });
-        res.json({ success: true, memories });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Failed to fetch memories' });
-    }
-});
-
-// Toggle like
-app.post('/api/memories/:id/like', async (req, res) => {
-    try {
-        // Get token from header
-        const token = req.header('Authorization')?.replace('Bearer ', '');
-        if (!token) {
-            return res.status(401).json({ success: false, message: 'No token provided' });
-        }
-
-        // Verify token and get userId
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const userId = decoded.userId;
-
-        const memory = await Memory.findById(req.params.id);
-        if (!memory) {
-            return res.status(404).json({ success: false, message: 'Memory not found' });
-        }
-
-        const hasLiked = memory.likedBy.includes(userId);
-
-        if (hasLiked) {
-            memory.likes -= 1;
-            memory.likedBy = memory.likedBy.filter(id => id !== userId);
-        } else {
-            memory.likes += 1;
-            memory.likedBy.push(userId);
-        }
-
-        await memory.save();
-
-        res.json({ success: true, likes: memory.likes });
-    } catch (err) {
-        console.error('Like toggle error:', err);
-        res.status(500).json({ success: false, message: 'Server error' });
     }
 });
 
@@ -803,6 +762,9 @@ app.get('/signup', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'signup.html'));
 });
 
+// Import and use the memories backend
+require('./memoriesbackend')(app);
+
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({
@@ -820,6 +782,7 @@ app.use((error, req, res, next) => {
     });
 });
 
+// Start the server
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
