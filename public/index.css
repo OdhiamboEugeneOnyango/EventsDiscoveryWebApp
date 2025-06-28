@@ -99,10 +99,41 @@ nav {
 
 /* Hero Section */
 .hero {
-    margin-top: 80px;
+    /* margin-top: 80px;
     padding: 4rem 0;
     text-align: center;
-    color: white;
+    color: white; */
+    position: relative;
+  margin-top: 80px;
+  height: 100vh;
+  padding: 6rem 0;
+  text-align: center;
+  color: white;
+  background: url("assets/hero-bg.jpg") no-repeat center center/cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background-attachment: fixed;
+}
+
+
+
+.hero-bg-overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    backdrop-filter: blur(1px); /* Reduced from 2px */
+    background: rgba(0, 0, 0, 0.12); /* Less dark */
+    z-index: 1;
+}
+
+
+.hero .container {
+  position: relative;
+  z-index: 2;
 }
 
 .hero h1 {
@@ -116,6 +147,18 @@ nav {
     margin-bottom: 2rem;
     animation: fadeInUp 1s ease-out 0.2s both;
 }
+
+.hero::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 150px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, #764ba2 100%);
+    z-index: 1;
+}
+
 
 /* Search Section */
 .search-section {
