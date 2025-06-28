@@ -3,7 +3,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
-const { Event } = require('./models/Event');
+ 
+const app = express();
+
 
 // Middleware to parse JSON bodies
 app.use(express.json());
@@ -103,11 +105,10 @@ module.exports = function(app) {
         }
     });
 
-    // Get events for dropdown (assuming you have Event model)
+    // Get events for dropdown 
     app.get('/api/events', async (req, res) => {
-        try {
-            // Assuming you have an Event model
-            const Event = mongoose.model('Event');
+        try {  
+            
             const events = await Event.find({ status: 'active' })
                 .select('_id title')
                 .sort({ date: -1 });
@@ -150,7 +151,7 @@ module.exports = function(app) {
             }
 
             // Get event details
-            const Event = mongoose.model('Event');
+            
             const event = await Event.findById(eventId);
             
             if (!event) {
@@ -359,24 +360,7 @@ module.exports = function(app) {
         console.error('Unhandled Rejection at:', promise, 'reason:', reason);
     });
 
-    // Handle SIGINT (Ctrl+C)
-    process.on('SIGINT', () => {
-        console.log('Server shutting down gracefully...');
-        mongoose.connection.close(() => {
-            console.log('Mongoose connection closed');
-            process.exit(0);
-        });
-    });
-
-    // Handle SIGTERM (kill command)
-    process.on('SIGTERM', () => {
-        console.log('Server shutting down gracefully...');
-        mongoose.connection.close(() => {
-            console.log('Mongoose connection closed');
-            process.exit(0);
-        });
-    });
-};
+   };
 
 // Export the Memory model for use in other parts of your application
 module.exports.Memory = Memory;

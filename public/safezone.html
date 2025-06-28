@@ -41,12 +41,18 @@
             </div>
             
             <div class="venue-grid" id="venueGrid">
-                <!-- Venues will be populated by JavaScript -->
+                <div class="loading">Loading venues...</div>
             </div>
             
             <div class="form-section">
                 <h3>Rate a Venue</h3>
                 <form id="venueRatingForm">
+                    <div class="form-group">
+                        <label for="venueEvent">Event</label>
+                        <select id="venueEvent" required>
+                            <option value="">Select Event</option>
+                        </select>
+                    </div>
                     <div class="form-group">
                         <label for="venueName">Venue Name</label>
                         <input type="text" id="venueName" required>
@@ -92,6 +98,12 @@
                 <h3>Report New Incident</h3>
                 <form id="incidentForm">
                     <div class="form-group">
+                        <label for="incidentEvent">Event</label>
+                        <select id="incidentEvent" required>
+                            <option value="">Select Event</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label for="incidentType">Incident Type</label>
                         <select id="incidentType" required>
                             <option value="">Select Type</option>
@@ -132,7 +144,7 @@
             </div>
             
             <div class="incident-list" id="incidentList">
-                <!-- Incidents will be populated by JavaScript -->
+                <div class="loading">Loading incidents...</div>
             </div>
         </div>
         
@@ -146,6 +158,12 @@
             <div class="form-section">
                 <h3>Report Lost/Found Item</h3>
                 <form id="lostFoundForm">
+                    <div class="form-group">
+                        <label for="lostFoundEvent">Event</label>
+                        <select id="lostFoundEvent" required>
+                            <option value="">Select Event</option>
+                        </select>
+                    </div>
                     <div class="form-group">
                         <label for="itemStatus">Status</label>
                         <select id="itemStatus" required>
@@ -183,7 +201,7 @@
             </div>
             
             <div class="lost-found-grid" id="lostFoundGrid">
-                <!-- Lost & Found items will be populated by JavaScript -->
+                <div class="loading">Loading lost & found items...</div>
             </div>
         </div>
         
