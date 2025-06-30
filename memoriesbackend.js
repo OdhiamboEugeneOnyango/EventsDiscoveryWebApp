@@ -3,37 +3,12 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
- 
+const Event = require('./models/Event'); // Import Event model
+const Memory = require('./models/Memory');
 const app = express();
-
 
 // Middleware to parse JSON bodies
 app.use(express.json());
-
-// Memory Schema
-const memorySchema = new mongoose.Schema({
-    eventId: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Event', 
-        required: true 
-    },
-    eventName: { type: String, required: true },
-    eventDate: { type: String, required: true },
-    location: { type: String, required: true },
-    type: { 
-        type: String, 
-        enum: ['image', 'video'], 
-        required: true 
-    },
-    mediaUrl: { type: String, required: true },
-    caption: { type: String, default: '' },
-    likes: { type: Number, default: 0 },
-    comments: { type: Number, default: 0 },
-    likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Track who liked it
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' } // Owner of the memory
-}, { timestamps: true });
-
-const Memory = mongoose.model('Memory', memorySchema);
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -170,7 +145,7 @@ module.exports = function(app) {
                 type: type || (req.file.mimetype.startsWith('video/') ? 'video' : 'image'),
                 mediaUrl: req.file.path,
                 caption: caption || 'New memory uploaded!',
-                // userId: req.user?._id // Add if you have user authentication
+                userId: req.user?._id // Add if you have user authentication
             });
 
             await memory.save();

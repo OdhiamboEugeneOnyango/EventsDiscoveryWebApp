@@ -8,7 +8,8 @@ const path = require('path');
 require('dotenv').config();
 
 //import models
-
+const Memory = require('./models/Memory');
+const Event = require('./models/Event');
 const app = express();
 
 // Middleware
@@ -83,11 +84,11 @@ const userSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
-
+//woohoo
 // Pre-save middleware to hash password
 userSchema.pre('save', async function(next) {
     if (!this.isModified('password')) return next();
-    
+     
     try {
         const salt = await bcrypt.genSalt(12);
         this.password = await bcrypt.hash(this.password, salt);
@@ -117,26 +118,6 @@ userSchema.methods.generateAuthToken = function() {
 };
 
 const User = mongoose.model('User', userSchema);
-
-// Event Schema
-const eventSchema = new mongoose.Schema({
-    title: { type: String, required: true },
-    category: { type: String, required: true },
-    description: { type: String, required: true },
-    date: { type: String, required: true },
-    time: { type: String, required: true },
-    venue: { type: String, required: true },
-    location: { type: String, required: true },
-    capacity: { type: Number, required: true },
-    price: { type: Number, default: 0 },
-    status: { type: String, enum: ['active', 'draft', 'ended'], default: 'active' },
-    attendees: { type: Number, default: 0 },
-    revenue: { type: Number, default: 0 },
-    rating: { type: Number, default: 0 }
-}, { timestamps: true });
-
-const Event = mongoose.model('Event', eventSchema);
-module.exports = { Event };
 
 // Validation middleware
 const validateSignupData = (req, res, next) => {

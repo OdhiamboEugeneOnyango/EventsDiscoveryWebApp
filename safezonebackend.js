@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const router = express.Router();
-const { Event } = require('./server');
+const Event = require('./models/Event');
 
 const app = express();
 

@@ -57,6 +57,25 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="role">Account Type</label>
+                    <select id="role" name="role" required>
+                        <option value="">Select account type</option>
+                        <option value="user">Event Attendee</option>
+                        <option value="organizer">Event Organizer</option>
+                        <option value="artist">Artist/Performer</option>
+                    </select>
+                    <span class="error-message" id="roleError"></span>
+                </div>
+
+                <!-- Admin invitation section (hidden by default) -->
+                <div class="form-group" id="adminInviteSection" style="display: none;">
+                    <label for="adminInviteCode">Admin Invitation Code</label>
+                    <input type="text" id="adminInviteCode" name="adminInviteCode" placeholder="Enter admin invitation code">
+                    <span class="error-message" id="adminInviteCodeError"></span>
+                </div>
+            
+
+                <div class="form-group">
                     <label for="interests">Interests (Optional)</label>
                     <div class="interests-grid">
                         <label class="interest-item">
