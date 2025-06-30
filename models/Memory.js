@@ -10,8 +10,6 @@ const memorySchema = new mongoose.Schema({
     mediaUrl: { type: String, required: true },
     type: { type: String, enum: ['image', 'video'], required: true },
     likes: { type: Number, default: 0 },
-    
-    // ✅ Updated to use user ObjectId
     likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     
     comments: { type: Number, default: 0 }
