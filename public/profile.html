@@ -82,6 +82,17 @@
                             <small class="help-text">Email cannot be changed for security reasons</small>
                         </div>
                         <div class="form-group">
+                            <label for="role">Account Type *</label>
+                            <select id="role" name="role" required>
+                                <option value="">Select account type</option>
+                                <option value="user">Event Attendee</option>
+                                <option value="organizer">Event Organizer</option>
+                                <option value="artist">Artist/Performer</option>
+                                <option value="admin">Administrator</option>
+                            </select>
+                             <small class="help-text">Your account type determines what features you can access</small>
+                        </div>
+                        <div class="form-group">
                             <label for="phone">Phone Number *</label>
                             <input type="tel" id="phone" name="phone" required placeholder="+254712345678 or 0712345678">
                             
@@ -184,7 +195,7 @@
                         <label>Receive SMS notifications</label>
                     </div>
                 </div>
-                <button class="btn btn-primary" onclick="showNotification('Privacy settings updated!', 'success')">💾 Save Privacy Settings</button>
+                <button class="btn btn-primary" onclick="savePrivacySettings()">💾 Save Privacy Settings</button>
             </div>
 
             <!-- Security Tab -->

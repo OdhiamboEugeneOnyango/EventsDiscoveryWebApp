@@ -226,6 +226,8 @@ function populateUserProfile(user) {
             'email': user.email || '', // Now editable
             'phone': user.phone || '',
             'location': user.location || '',
+            'role': user.role || 'user', // Default to 'user' if not set
+            'interests': user.interests || [],
             'dateOfBirth': user.dateOfBirth || '',
             'bio': user.bio || ''
         };
@@ -342,8 +344,10 @@ async function updateUserProfile() {
         email: document.getElementById('email')?.value?.trim() || '', // Email is now included
         phone: document.getElementById('phone')?.value?.trim() || '',
         location: document.getElementById('location')?.value || '',
-        interests: preferences.filter(p => p.selected).map(p => p.id),
+        role: document.getElementById('role')?.value || 'user', // Default to 'user'
+        interests: preferences.filter(p => p.selected).map(p => p.id),                   
         newsletter: document.getElementById('newsletter')?.checked || false
+
     };
     
     // Include bio and dateOfBirth if they exist
@@ -364,7 +368,9 @@ async function updateUserProfile() {
     console.log('email:', formData.email);
     console.log('phone:', formData.phone);
     console.log('location:', formData.location);
+    console.log('role:', formData.role);
     console.log('interests:', formData.interests);
+    console.log('bio:', formData.bio);
     console.log('newsletter:', formData.newsletter);
     console.log('Full form data:', formData);
     
@@ -398,6 +404,26 @@ async function updateUserProfile() {
         showNotification('Location is required', 'error');
         return;
     }
+    if (!formData.role) {
+        showNotification('Role is required', 'error');
+        return;
+    }
+
+    if (formData.interests.length === 0) {
+        showNotification('Please select at least one interest', 'error');
+        return;
+    }
+
+    if (formData.bio && formData.bio.length > 500) {
+        showNotification('Bio must be less than 500 characters', 'error');
+        return;
+    }
+
+    if (formData.dateOfBirth && isNaN(new Date(formData.dateOfBirth).getTime())) {
+        showNotification('Please enter a valid date of birth', 'error');
+        return;
+    }
+
     
     // Validate phone format
     const phoneRegex = /^(\+254|0)[17]\d{8}$/;
@@ -409,6 +435,12 @@ async function updateUserProfile() {
     // Validate location
     if (!validLocations.includes(formData.location.toLowerCase())) {
         showNotification('Please select a valid location', 'error');
+        return;
+    }
+    // Validate role
+    const validRoles = ['user', 'organizer', 'artist', 'admin'];
+    if (!validRoles.includes(formData.role)) {
+        showNotification('Please select a valid account type', 'error');
         return;
     }
     
@@ -552,6 +584,12 @@ function showTab(tabName) {
         btn.classList.remove('active');
     });
     
+    // Add active class to clicked button
+    const clickedBtn = event ? event.target : document.querySelector(`[onclick="showTab('${tabName}')"]`);
+    if (clickedBtn) {
+        clickedBtn.classList.add('active');
+    }
+    
     // Show selected tab content
     const selectedTab = document.getElementById(`${tabName}Tab`);
     if (selectedTab) {
@@ -578,6 +616,51 @@ function loadUserEvents() {
     if (!eventsContainer) return;
     
     eventsContainer.innerHTML = userEvents.map(event => `
+        <div class="event-item ${event.status}">
+            <div class="event-icon">${event.icon}</div>
+            <div class="event-details">
+                <h4>${event.title}</h4>
+                <p>📅 ${new Date(event.date).toLocaleDateString()}</p>
+                <p>📍 ${event.location}</p>
+                <span class="event-status status-${event.status}">${event.status.toUpperCase()}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Add these functions after the loadUserEvents function
+let currentFilter = 'all';
+
+function filterEvents(filter) {
+    currentFilter = filter;
+    
+    // Update button states
+    document.querySelectorAll('.event-filters button').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-secondary');
+    });
+    
+    const activeBtn = document.getElementById(`filter${filter.charAt(0).toUpperCase() + filter.slice(1)}`);
+    if (activeBtn) {
+        activeBtn.classList.remove('btn-secondary');
+        activeBtn.classList.add('btn-primary');
+    }
+    
+    // Filter and display events
+    const filteredEvents = filter === 'all' ? userEvents : userEvents.filter(event => event.status === filter);
+    displayFilteredEvents(filteredEvents);
+}
+
+function displayFilteredEvents(events) {
+    const eventsContainer = document.getElementById('eventsContainer');
+    if (!eventsContainer) return;
+    
+    if (events.length === 0) {
+        eventsContainer.innerHTML = '<p class="no-events">No events found for this filter.</p>';
+        return;
+    }
+    
+    eventsContainer.innerHTML = events.map(event => `
         <div class="event-item ${event.status}">
             <div class="event-icon">${event.icon}</div>
             <div class="event-details">
@@ -734,4 +817,345 @@ if (typeof module !== 'undefined' && module.exports) {
         preferences,
         isValidEmail
     };
+}
+
+// Privacy Settings Functions
+function toggleSetting(toggleElement) {
+    toggleElement.classList.toggle('active');
+    
+    // Get the setting name from the label
+    const label = toggleElement.parentElement.querySelector('label').textContent;
+    const isActive = toggleElement.classList.contains('active');
+    
+    console.log(`Setting "${label}" changed to:`, isActive);
+    
+    // You can add logic here to save the setting to the backend
+    // For now, just show a notification
+    showNotification(`${label} ${isActive ? 'enabled' : 'disabled'}`, 'info');
+}
+
+// Save all privacy settings
+async function savePrivacySettings() {
+    try {
+        // Collect all privacy settings
+        const privacySettings = {
+            profilePublic: document.querySelector('.privacy-toggle:nth-child(1) .toggle-switch').classList.contains('active'),
+            showAttendedEvents: document.querySelector('.privacy-toggle:nth-child(2) .toggle-switch').classList.contains('active'),
+            allowEmailDiscovery: document.querySelector('.privacy-toggle:nth-child(3) .toggle-switch').classList.contains('active'),
+            receiveRecommendations: document.querySelector('.privacy-toggle:nth-child(4) .toggle-switch').classList.contains('active'),
+            emailNotifications: document.querySelector('.privacy-toggle:nth-child(5) .toggle-switch').classList.contains('active'),
+            smsNotifications: document.querySelector('.privacy-toggle:nth-child(6) .toggle-switch').classList.contains('active')
+        };
+        
+        console.log('Saving privacy settings:', privacySettings);
+        
+        // Call API to save settings (you'll need to implement this endpoint)
+        const response = await fetch(`${API_BASE_URL}/auth/privacy-settings`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            },
+            body: JSON.stringify(privacySettings)
+        });
+        
+        if (response.ok) {
+            showNotification('Privacy settings updated successfully!', 'success');
+        } else {
+            throw new Error('Failed to save privacy settings');
+        }
+        
+    } catch (error) {
+        console.error('Error saving privacy settings:', error);
+        showNotification('Failed to save privacy settings. Please try again.', 'error');
+    }
+}
+
+// Security Functions
+function changePassword() {
+    // Create a modal for password change
+    const modal = createModal('Change Password', `
+        <form id="changePasswordForm">
+            <div class="form-group">
+                <label for="currentPassword">Current Password</label>
+                <input type="password" id="currentPassword" name="currentPassword" required>
+            </div>
+            <div class="form-group">
+                <label for="newPassword">New Password</label>
+                <input type="password" id="newPassword" name="newPassword" required minlength="8">
+            </div>
+            <div class="form-group">
+                <label for="confirmPassword">Confirm New Password</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" required>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Change Password</button>
+            </div>
+        </form>
+    `);
+    
+    // Handle form submission
+    document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        
+        if (newPassword !== confirmPassword) {
+            showNotification('New passwords do not match', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getAuthToken()}`
+                },
+                body: JSON.stringify({ currentPassword, newPassword })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                showNotification('Password changed successfully!', 'success');
+                closeModal();
+            } else {
+                showNotification(data.message || 'Failed to change password', 'error');
+            }
+        } catch (error) {
+            console.error('Error changing password:', error);
+            showNotification('Failed to change password. Please try again.', 'error');
+        }
+    });
+}
+
+function setup2FA() {
+    showNotification('Two-Factor Authentication setup coming soon!', 'info');
+    // You can implement 2FA setup logic here
+}
+
+function manageSessions() {
+    // Create a modal to show active sessions
+    const modal = createModal('Active Sessions', `
+        <div id="sessionsContainer">
+            <div class="session-item">
+                <div class="session-info">
+                    <h4>Current Session</h4>
+                    <p>🖥️ ${navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop'} - ${navigator.platform}</p>
+                    <p>📍 Current Location</p>
+                    <p>🕒 Active Now</p>
+                </div>
+                <span class="session-status current">Current</span>
+            </div>
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Close</button>
+            <button type="button" class="btn btn-danger" onclick="logoutAllSessions()">Logout All Other Sessions</button>
+        </div>
+    `);
+}
+
+function logoutAllSessions() {
+    if (confirm('Are you sure you want to logout all other sessions? This will end all active sessions except the current one.')) {
+        // Implement logout all sessions logic
+        showNotification('All other sessions have been terminated', 'success');
+        closeModal();
+    }
+}
+
+async function downloadData() {
+    try {
+        showNotification('Preparing your data download...', 'info');
+        
+        const response = await fetch(`${API_BASE_URL}/auth/download-data`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${getAuthToken()}`
+            }
+        });
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'my-eventhub-data.json';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showNotification('Your data has been downloaded successfully!', 'success');
+        } else {
+            throw new Error('Failed to download data');
+        }
+    } catch (error) {
+        console.error('Error downloading data:', error);
+        showNotification('Failed to download data. Please try again.', 'error');
+    }
+}
+
+function deleteAccount() {
+    const modal = createModal('Delete Account', `
+        <div class="warning-message">
+            <h3>⚠️ This action cannot be undone!</h3>
+            <p>Deleting your account will permanently remove:</p>
+            <ul>
+                <li>Your profile information</li>
+                <li>Your event history</li>
+                <li>Your preferences and settings</li>
+                <li>All associated data</li>
+            </ul>
+            <p>Type <strong>DELETE</strong> to confirm:</p>
+            <input type="text" id="deleteConfirmation" placeholder="Type DELETE">
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            <button type="button" class="btn btn-danger" onclick="confirmDeleteAccount()">Delete My Account</button>
+        </div>
+    `);
+}
+
+async function confirmDeleteAccount() {
+    const confirmation = document.getElementById('deleteConfirmation').value;
+    
+    if (confirmation !== 'DELETE') {
+        showNotification('Please type DELETE to confirm', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/delete-account`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${getAuthToken()}`
+            }
+        });
+        
+        if (response.ok) {
+            showNotification('Your account has been deleted successfully', 'success');
+            setTimeout(() => {
+                logout();
+            }, 2000);
+        } else {
+            throw new Error('Failed to delete account');
+        }
+    } catch (error) {
+        console.error('Error deleting account:', error);
+        showNotification('Failed to delete account. Please try again.', 'error');
+    }
+}
+
+// Modal utility functions
+function createModal(title, content) {
+    // Remove existing modal if any
+    const existingModal = document.getElementById('customModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const modal = document.createElement('div');
+    modal.id = 'customModal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>${title}</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                ${content}
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Add modal styles if not present
+    if (!document.getElementById('modal-styles')) {
+        const styles = document.createElement('style');
+        styles.id = 'modal-styles';
+        styles.textContent = `
+            .modal-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            }
+            .modal-content {
+                background: white;
+                border-radius: 8px;
+                max-width: 500px;
+                width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+            }
+            .modal-header {
+                padding: 20px;
+                border-bottom: 1px solid #eee;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .modal-close {
+                background: none;
+                border: none;
+                font-size: 24px;
+                cursor: pointer;
+            }
+            .modal-body {
+                padding: 20px;
+            }
+            .modal-buttons {
+                display: flex;
+                gap: 10px;
+                justify-content: flex-end;
+                margin-top: 20px;
+            }
+            .warning-message {
+                text-align: center;
+                color: #dc2626;
+            }
+            .warning-message ul {
+                text-align: left;
+                margin: 15px 0;
+            }
+            .session-item {
+                border: 1px solid #eee;
+                border-radius: 8px;
+                padding: 15px;
+                margin-bottom: 10px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .session-status.current {
+                background: #10b981;
+                color: white;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+            }
+        `;
+        document.head.appendChild(styles);
+    }
+    
+    return modal;
+}
+
+function closeModal() {
+    const modal = document.getElementById('customModal');
+    if (modal) {
+        modal.remove();
+    }
 }

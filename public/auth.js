@@ -92,6 +92,8 @@ function initializeSignupForm() {
             }
         }
     });
+    // Handle role selection changes
+    handleRoleSelection();
 }
 
 // Handle role selection changes
@@ -113,7 +115,6 @@ function handleRoleSelection() {
         });
     }
 }
-handleRoleSelection();
 
 // Validate Login Form
 function validateLoginForm() {
@@ -160,6 +161,7 @@ function validateSignupForm() {
         if (!validateField('adminInviteCode', adminInviteCode, 'adminInviteCodeError')) {
             isValid = false;
         }
+    }
 
     // Validate each field
     Object.keys(fields).forEach(key => {
@@ -456,13 +458,13 @@ async function performSignup() {
 function redirectBasedOnRole(user) {
     switch (user.role) {
         case 'admin':
-            window.location.href = 'admin-dashboard.html';
+            window.location.href = 'admin.html';
             break;
         case 'organizer':
-            window.location.href = 'organizer-dashboard.html';
+            window.location.href = 'organizer.html';
             break;
         case 'artist':
-            window.location.href = 'artist-dashboard.html';
+            window.location.href = 'artist.html';
             break;
         case 'user':
         default:
@@ -687,4 +689,5 @@ window.addEventListener('unhandledrejection', function(e) {
     if (e.reason && e.reason.message) {
         showModal('error', 'Error', e.reason.message);
     }
-});}
+
+});
