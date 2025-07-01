@@ -351,10 +351,27 @@ app.get('/api/events', async (req, res) => {
         // Map title ➝ name for the dropdown
         const mappedEvents = events.map(event => ({
             _id: event._id,
-            name: event.title
+            title: event.title,
+            date: event.date,
+            location: event.location,
+            category: event.category,
+            price: `KSH ${event.price.toLocaleString()}`,
+            icon: getIconForCategory(event.category)
         }));
 
         res.json({ success: true, events: mappedEvents });
+
+        function getIconForCategory(category) {
+            switch (category) {
+                case 'music': return '🎵';
+                case 'sports': return '⚽';
+                case 'arts': return '🎨';
+                case 'food': return '🍽️';
+                case 'tech': return '💻';
+                case 'business': return '📊';
+                default: return '🎉';
+            }
+        }
     } catch (error) {
         res.status(500).json({ success: false, message: 'Failed to fetch events' });
     }
