@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const eventsRoutes = require('./eventsbackend');
 const memoriesBackend = require('./memoriesbackend');
 const safezoneRoutes = require('./safezonebackend');
 const organizerRoutes = require('./organizerbackend');
@@ -26,6 +27,7 @@ memoriesBackend(app); // Initialize memories backend routes
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(eventsRoutes);
 app.use(safezoneRoutes);
 app.use(artistRoutes);
 app.use(organizerRoutes);
@@ -712,56 +714,6 @@ app.get('/api/events/:eventId', requireAuth, requireRole(['user', 'organizer', '
             success: false,
             message: 'Failed to load event details'
         });
-    }
-});
-
-// Get all events
-app.get('/api/events', async (req, res) => {
-    try {
-        const events = await Event.find({ status: 'active' }).sort({ date: 1 });
-
-        // Map title ➝ name for the dropdown
-        const mappedEvents = events.map(event => ({
-            _id: event._id,
-            name: event.title
-        }));
-
-        res.json({ success: true, events: mappedEvents });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Failed to fetch events' });
-    }
-});
-
-// Create event
-app.post('/api/events', async (req, res) => {
-    try {
-        const event = new Event(req.body);
-        await event.save();
-        res.status(201).json({ success: true, event });
-    } catch (error) {
-        res.status(400).json({ success: false, message: error.message });
-    }
-});
-
-// Update event
-app.put('/api/events/:id', async (req, res) => {
-    try {
-        const event = await Event.findByIdAndUpdate(req.params.id, req.body, { new: true });
-        if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
-        res.json({ success: true, event });
-    } catch (error) {
-        res.status(400).json({ success: false, message: error.message });
-    }
-});
-
-// Delete event
-app.delete('/api/events/:id', async (req, res) => {
-    try {
-        const event = await Event.findByIdAndDelete(req.params.id);
-        if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
-        res.json({ success: true, message: 'Event deleted successfully' });
-    } catch (error) {
-        res.status(400).json({ success: false, message: error.message });
     }
 });
 

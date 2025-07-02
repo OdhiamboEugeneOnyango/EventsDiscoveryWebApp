@@ -19,6 +19,12 @@ async function loadEvents() {
     try {
         const response = await fetch('/api/events');
         const data = await response.json();
+
+        console.log('API Response:', data);
+        console.log('Events array:', data.events);
+        console.log('First event:', data.events?.[0]);
+        console.log('First event title:', data.events?.[0]?.title);
+        
         if (data.success) {
             currentEvents = data.events;
             displayEvents(currentEvents);
@@ -91,11 +97,10 @@ function filterByPrice(eventPrice, priceRange) {
     }
 }
 
-
-// Display events
 function displayEvents(events) {
     const eventGrid = document.getElementById('eventGrid');
     if (!eventGrid) return;
+    
     if (events.length === 0) {
         eventGrid.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: #666;">
@@ -105,29 +110,36 @@ function displayEvents(events) {
         `;
         return;
     }
-    eventGrid.innerHTML = events.map(event => `
-        <div class="event-card ${currentView === 'list' ? 'list-view' : ''}" onclick="openEventModal('${event._id || event.id}')">
-            <div class="event-image">
-                <span>${event.icon || ''}</span>
-            </div>
-            <div class="event-content">
-                <h3 class="event-title">${event.title}</h3>
-                <div class="event-details">
-                    <p>📅 ${formatDate(event.date)} • ${event.time}</p>
-                    <p>📍 ${event.venue}, ${event.location}</p>
+    
+    console.log('Displaying events:', events); // Debug line
+    
+    eventGrid.innerHTML = events.map(event => {
+        console.log('Processing event:', event); // Debug line
+        
+        return `
+            <div class="event-card ${currentView === 'list' ? 'list-view' : ''}" onclick="openEventModal('${event._id || event.id}')">
+                <div class="event-image">
+                    <span>${event.icon || '🎉'}</span>
                 </div>
-                <div class="event-price">${event.price}</div>
-                <div class="event-actions-preview">
-                    <span class="quick-action" onclick="event.stopPropagation(); quickInterest('${event._id || event.id}')">
-                        ${userInteractions.interested.includes(event._id || event.id) ? '❤️' : '🤍'} Interested
-                    </span>
-                    <span class="quick-action" onclick="event.stopPropagation(); quickSave('${event._id || event.id}')">
-                        ${userInteractions.saved.includes(event._id || event.id) ? '🔖' : '📝'} Save
-                    </span>
+                <div class="event-content">
+                    <h3 class="event-title">${event.title || 'Event Title'}</h3>
+                    <div class="event-details">
+                        <p>📅 ${event.date ? formatDate(event.date) : 'Date TBD'} • ${event.time || 'Time TBD'}</p>
+                        <p>📍 ${event.venue || 'Venue TBD'}, ${event.location || 'Location TBD'}</p>
+                    </div>
+                    <div class="event-price">${event.price || 'Free'}</div>
+                    <div class="event-actions-preview">
+                        <span class="quick-action" onclick="event.stopPropagation(); quickInterest('${event._id || event.id}')">
+                            ${userInteractions.interested.includes(event._id || event.id) ? '❤️' : '🤍'} Interested
+                        </span>
+                        <span class="quick-action" onclick="event.stopPropagation(); quickSave('${event._id || event.id}')">
+                            ${userInteractions.saved.includes(event._id || event.id) ? '🔖' : '📝'} Save
+                        </span>
+                    </div>
                 </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // Format date
@@ -421,7 +433,3 @@ function showAllReviews() {
     alert('Reviews feature coming soon! This would show all event reviews and ratings.');
 }
 
-// Initialize the page when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('EventHub Events page loaded successfully!');
-});
