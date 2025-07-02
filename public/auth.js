@@ -7,7 +7,8 @@ const API_BASE_URL = 'http://localhost:3000/api';
 const validationPatterns = {
     email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     phone: /^(\+254|0)[17]\d{8}$/,
-    password: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/
+    password: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+    adminInviteCode: /^[A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}$/ // Format: XXXXXXXX-XXXX-XXXX
 };
 
 // Initialize page
@@ -62,10 +63,12 @@ function initializeSignupForm() {
         lastName: document.getElementById('lastName'),
         email: document.getElementById('email'),
         phone: document.getElementById('phone'),
+        role: document.getElementById('role'),
         password: document.getElementById('password'),
-        confirmPassword: document.getElementById('confirmPassword')
+        confirmPassword: document.getElementById('confirmPassword'),
+        adminInviteCode: document.getElementById('adminInviteCode')
     };
-    
+        
     // Add event listeners for real-time validation
     Object.keys(inputs).forEach(key => {
         if (inputs[key]) {
@@ -91,18 +94,44 @@ function initializeSignupForm() {
     });
 }
 
+// Handle role selection changes
+function handleRoleSelection() {
+    const roleSelect = document.getElementById('role');
+    const adminSection = document.getElementById('adminInviteSection');
+    
+    if (roleSelect) {
+        roleSelect.addEventListener('change', function() {
+            if (this.value === 'admin') {
+                adminSection.style.display = 'block';
+                document.getElementById('adminInviteCode').required = true;
+            } else {
+                adminSection.style.display = 'none';
+                document.getElementById('adminInviteCode').required = false;
+                document.getElementById('adminInviteCode').value = '';
+                clearError('adminInviteCodeError');
+            }
+        });
+    }
+}
+handleRoleSelection();
+
 // Validate Login Form
 function validateLoginForm() {
     let isValid = true;
     
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
+    const loginRole = document.getElementById('loginRole').value;
     
     if (!validateField('email', email, 'emailError')) {
         isValid = false;
     }
     
     if (!validateField('password', password, 'passwordError')) {
+        isValid = false;
+    }
+
+     if (!validateField('loginRole', loginRole, 'loginRoleError')) {
         isValid = false;
     }
     
@@ -119,10 +148,19 @@ function validateSignupForm() {
         email: document.getElementById('email').value,
         phone: document.getElementById('phone').value,
         location: document.getElementById('location').value,
+        role: document.getElementById('role').value,
         password: document.getElementById('password').value,
         confirmPassword: document.getElementById('confirmPassword').value
     };
     
+    // Add admin invite code validation if role is admin
+    const role = document.getElementById('role').value;
+    if (role === 'admin') {
+        const adminInviteCode = document.getElementById('adminInviteCode').value;
+        if (!validateField('adminInviteCode', adminInviteCode, 'adminInviteCodeError')) {
+            isValid = false;
+        }
+
     // Validate each field
     Object.keys(fields).forEach(key => {
         if (!validateField(key, fields[key], key + 'Error')) {
@@ -210,6 +248,25 @@ function validateField(fieldName, value, errorElementId) {
                 isValid = false;
             }
             break;
+    
+        case 'role':
+        case 'loginRole':
+            if (!value) {
+                errorMessage = fieldName === 'role' ? 'Please select an account type' : 'Please select your role';
+                isValid = false;
+            }
+            break;
+
+        case 'adminInviteCode':
+            if (!value.trim()) {
+                errorMessage = 'Admin invitation code is required';
+                isValid = false;
+            } else if (!validationPatterns.adminInviteCode.test(value)) {
+                errorMessage = 'Invalid invitation code format';
+                isValid = false;
+            }
+            break;
+
     }
     
     if (!isValid) {
@@ -310,7 +367,8 @@ async function performLogin() {
             },
             body: JSON.stringify({
                 email,
-                password
+                password,
+                role: document.getElementById('loginRole').value // Include role in login request
             })
         });
         
@@ -326,8 +384,8 @@ async function performLogin() {
             localStorage.setItem('eventhub_token', data.token);
             sessionStorage.setItem('eventhub_user', JSON.stringify(data.user));
             
-            showModal('success', 'Login Successful!', 'Welcome back! Redirecting to home page...', () => {
-                window.location.href = 'index.html';
+            showModal('success', 'Login Successful!', `Welcome back, ${data.user.firstName}! Redirecting...`, () => {
+                redirectBasedOnRole(data.user);
             });
         } else {
             showModal('error', 'Login Failed', data.message || 'Invalid email or password. Please try again.');
@@ -351,10 +409,12 @@ async function performSignup() {
         email: document.getElementById('email').value,
         phone: document.getElementById('phone').value,
         location: document.getElementById('location').value,
+        role: document.getElementById('role').value,
         password: document.getElementById('password').value,
         confirmPassword: document.getElementById('confirmPassword').value,
         interests: Array.from(document.querySelectorAll('input[name="interests"]:checked')).map(cb => cb.value),
-        newsletter: document.getElementById('newsletter').checked
+        newsletter: document.getElementById('newsletter').checked,
+        adminInviteCode: document.getElementById('adminInviteCode') ? document.getElementById('adminInviteCode').value : null
     };
     
     // Show loading state
@@ -389,6 +449,25 @@ async function performSignup() {
         // Reset button
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
+    }
+}
+
+// Redirect user based on role after login/signup
+function redirectBasedOnRole(user) {
+    switch (user.role) {
+        case 'admin':
+            window.location.href = 'admin-dashboard.html';
+            break;
+        case 'organizer':
+            window.location.href = 'organizer-dashboard.html';
+            break;
+        case 'artist':
+            window.location.href = 'artist-dashboard.html';
+            break;
+        case 'user':
+        default:
+            window.location.href = 'index.html';
+            break;
     }
 }
 
@@ -608,4 +687,4 @@ window.addEventListener('unhandledrejection', function(e) {
     if (e.reason && e.reason.message) {
         showModal('error', 'Error', e.reason.message);
     }
-});
+});}

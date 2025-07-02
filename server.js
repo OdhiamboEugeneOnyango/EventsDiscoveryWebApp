@@ -8,7 +8,8 @@ const path = require('path');
 require('dotenv').config();
 
 //import models
-
+const Memory = require('./models/Memory');
+const Event = require('./models/Event');
 const app = express();
 
 // Middleware
@@ -50,6 +51,12 @@ const userSchema = new mongoose.Schema({
         trim: true,
         match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please enter a valid email']
     },
+    role: {
+        type: String,
+        required: true,
+        enum: ['user', 'organizer', 'artist', 'admin'],
+        default: 'user'
+    },
     phone: {
         type: String,
         required: true,
@@ -83,11 +90,11 @@ const userSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
-
+//woohoo
 // Pre-save middleware to hash password
 userSchema.pre('save', async function(next) {
     if (!this.isModified('password')) return next();
-    
+     
     try {
         const salt = await bcrypt.genSalt(12);
         this.password = await bcrypt.hash(this.password, salt);
@@ -109,7 +116,8 @@ userSchema.methods.generateAuthToken = function() {
             userId: this._id, 
             email: this.email,
             firstName: this.firstName,
-            lastName: this.lastName
+            lastName: this.lastName,
+            role: this.role
         },
         JWT_SECRET,
         { expiresIn: '24h' }
@@ -118,29 +126,37 @@ userSchema.methods.generateAuthToken = function() {
 
 const User = mongoose.model('User', userSchema);
 
-// Event Schema
-const eventSchema = new mongoose.Schema({
-    title: { type: String, required: true },
-    category: { type: String, required: true },
-    description: { type: String, required: true },
-    date: { type: String, required: true },
-    time: { type: String, required: true },
-    venue: { type: String, required: true },
-    location: { type: String, required: true },
-    capacity: { type: Number, required: true },
-    price: { type: Number, default: 0 },
-    status: { type: String, enum: ['active', 'draft', 'ended'], default: 'active' },
-    attendees: { type: Number, default: 0 },
-    revenue: { type: Number, default: 0 },
-    rating: { type: Number, default: 0 }
-}, { timestamps: true });
+const adminInviteCodeSchema = new mongoose.Schema({
+    code: {
+        type: String,
+        required: true,
+        unique: true,
+        match: [/^[A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}$/, 'Invalid invite code format']
+    },
+    isUsed: {
+        type: Boolean,
+        default: false
+    },
+    usedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    usedAt: {
+        type: Date
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }
+}, {
+    timestamps: true
+});
 
-const Event = mongoose.model('Event', eventSchema);
-module.exports = { Event };
+const AdminInviteCode = mongoose.model('AdminInviteCode', adminInviteCodeSchema);
 
 // Validation middleware
-const validateSignupData = (req, res, next) => {
-    const { firstName, lastName, email, phone, location, password, confirmPassword } = req.body;
+const validateSignupData = async (req, res, next) => {
+    const { firstName, lastName, email, phone, location, password, confirmPassword, role, adminInviteCode } = req.body;
     
     // Check required fields
     if (!firstName || !lastName || !email || !phone || !location || !password || !confirmPassword) {
@@ -193,6 +209,33 @@ const validateSignupData = (req, res, next) => {
         });
     }
     
+    const validRoles = ['user', 'organizer', 'artist', 'admin'];
+    if (role && !validRoles.includes(role)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid role selected'
+        });
+    }
+    
+    // Validate admin invite code if role is admin
+    if (role === 'admin' && !adminInviteCode) {
+        return res.status(400).json({
+            success: false,
+            message: 'Admin invitation code is required for admin accounts'
+        });
+    }
+    
+    if (adminInviteCode) {
+        const adminCodeRegex = /^[A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+        if (!adminCodeRegex.test(adminInviteCode)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid admin invitation code format'
+            });
+        }
+              
+        }
+        
     next();
 };
 
@@ -238,6 +281,26 @@ app.post('/api/auth/signup', validateSignupData, async (req, res) => {
             });
         }
         
+         // Validate admin invite code if role is admin
+        if (role === 'admin') {
+            const inviteCode = await AdminInviteCode.findOne({ 
+                code: adminInviteCode,
+                isUsed: false 
+            });
+            
+            if (!inviteCode) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid or expired admin invitation code'
+                });
+            }
+            
+            // Mark invite code as used
+            inviteCode.isUsed = true;
+            inviteCode.usedAt = new Date();
+            await inviteCode.save();
+        }
+        
         // Create new user
         const newUser = new User({
             firstName: firstName.trim(),
@@ -246,11 +309,20 @@ app.post('/api/auth/signup', validateSignupData, async (req, res) => {
             phone: phone.trim(),
             location: location.toLowerCase(),
             password,
+            role: role || 'user',
             interests: interests || [],
             newsletter: newsletter || false
         });
         
         await newUser.save();
+
+        // Update invite code with user reference if admin
+        if (role === 'admin') {
+            await AdminInviteCode.findOneAndUpdate(
+                { code: adminInviteCode },
+                { usedBy: newUser._id }
+            );
+        }
         
         // Generate token
         const token = newUser.generateAuthToken();
@@ -263,6 +335,7 @@ app.post('/api/auth/signup', validateSignupData, async (req, res) => {
             email: newUser.email,
             phone: newUser.phone,
             location: newUser.location,
+            role: newUser.role,
             interests: newUser.interests,
             newsletter: newUser.newsletter,
             createdAt: newUser.createdAt
@@ -289,6 +362,118 @@ app.post('/api/auth/signup', validateSignupData, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Server error. Please try again later.'
+        });
+    }
+});
+
+const requireAuth = (req, res, next) => {
+    try {
+        const token = req.header('Authorization')?.replace('Bearer ', '');
+        
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: 'No token provided'
+            });
+        }
+        
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = decoded;
+        next();
+        
+    } catch (error) {
+        return res.status(401).json({
+            success: false,
+            message: 'Invalid token'
+        });
+    }
+};
+
+const requireRole = (roles) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authentication required'
+            });
+        }
+        
+        if (!roles.includes(req.user.role)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Insufficient permissions'
+            });
+        }
+        
+        next();
+    };
+};
+
+// Create admin invite code (admin only)
+app.post('/api/admin/invite-codes', requireAuth, requireRole(['admin']), async (req, res) => {
+    try {
+        // Generate unique invite code
+        const generateCode = () => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            const part1 = Array.from({length: 8}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+            const part2 = Array.from({length: 4}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+            const part3 = Array.from({length: 4}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+            return `${part1}-${part2}-${part3}`;
+        };
+        
+        let code;
+        let isUnique = false;
+        
+        // Ensure unique code
+        while (!isUnique) {
+            code = generateCode();
+            const existing = await AdminInviteCode.findOne({ code });
+            if (!existing) isUnique = true;
+        }
+        
+        const inviteCode = new AdminInviteCode({
+            code,
+            createdBy: req.user.userId
+        });
+        
+        await inviteCode.save();
+        
+        res.status(201).json({
+            success: true,
+            message: 'Admin invite code created successfully',
+            inviteCode: {
+                code: inviteCode.code,
+                createdAt: inviteCode.createdAt
+            }
+        });
+        
+    } catch (error) {
+        console.error('Create invite code error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create invite code'
+        });
+    }
+});
+
+// Get all invite codes (admin only)
+app.get('/api/admin/invite-codes', requireAuth, requireRole(['admin']), async (req, res) => {
+    try {
+        const inviteCodes = await AdminInviteCode.find()
+            .populate('usedBy', 'firstName lastName email')
+            .populate('createdBy', 'firstName lastName email')
+            .sort({ createdAt: -1 });
+        
+        res.json({
+            success: true,
+            inviteCodes
+        });
+        
+    } catch (error) {
+        console.error('Get invite codes error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch invite codes'
         });
     }
 });
@@ -341,6 +526,7 @@ app.post('/api/auth/login', validateLoginData, async (req, res) => {
             email: user.email,
             phone: user.phone,
             location: user.location,
+            role: user.role,
             interests: user.interests,
             newsletter: user.newsletter,
             lastLogin: user.lastLogin
@@ -370,27 +556,10 @@ app.get('/api/events', async (req, res) => {
         // Map title ➝ name for the dropdown
         const mappedEvents = events.map(event => ({
             _id: event._id,
-            title: event.title,
-            date: event.date,
-            location: event.location,
-            category: event.category,
-            price: `KSH ${event.price.toLocaleString()}`,
-            icon: getIconForCategory(event.category)
+            name: event.title
         }));
 
         res.json({ success: true, events: mappedEvents });
-
-        function getIconForCategory(category) {
-            switch (category) {
-                case 'music': return '🎵';
-                case 'sports': return '⚽';
-                case 'arts': return '🎨';
-                case 'food': return '🍽️';
-                case 'tech': return '💻';
-                case 'business': return '📊';
-                default: return '🎉';
-            }
-        }
     } catch (error) {
         res.status(500).json({ success: false, message: 'Failed to fetch events' });
     }
@@ -567,6 +736,7 @@ app.put('/api/auth/profile', validateProfileData, async (req, res) => {
             email,
             phone,
             location,
+            role: decoded.role,        
             interests,
             newsletter,
             bio,
@@ -604,6 +774,7 @@ app.put('/api/auth/profile', validateProfileData, async (req, res) => {
             email: email.toLowerCase().trim(),
             phone: phone.trim(),
             location: location.toLowerCase(),
+            role: decoded.role, // Keep the user's current role
             interests: interests || [],
             newsletter: newsletter || false
         };
@@ -725,6 +896,36 @@ app.post('/api/auth/check-email', async (req, res) => {
             message: 'Server error occurred'
         });
     }
+});
+
+// Admin only route example
+app.get('/api/admin/users', requireAuth, requireRole(['admin']), async (req, res) => {
+    try {
+        const users = await User.find().select('-password');
+        res.json({ success: true, users });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to fetch users' });
+    }
+});
+
+// Organizer and Admin route example
+app.get('/api/organizer/dashboard', requireAuth, requireRole(['organizer', 'admin']), async (req, res) => {
+    // Organizer dashboard logic
+    res.json({ success: true, message: 'Organizer dashboard data' });
+});
+
+// Artist and Admin route example
+app.get('/api/artist/profile', requireAuth, requireRole(['artist', 'admin']), async (req, res) => {
+    // Artist profile logic
+    res.json({ success: true, message: 'Artist profile data' });
+});
+
+// Middleware to handle 404 errors
+app.use((req, res, next) => {
+    res.status(404).json({
+        success: false,
+        message: 'Route not found'
+    });
 });
 
 // Enhanced error handling middleware
