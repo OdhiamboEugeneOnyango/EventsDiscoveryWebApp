@@ -2,18 +2,23 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const memoriesBackend = require('./memoriesbackend');
 const safezoneRoutes = require('./safezonebackend');
 const artistRoutes = require('./artistbackend');
+const vibespaceRoutes = require('./vibespacebackend');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
 //import models
+const User = require('./models/User');
 const Memory = require('./models/Memory');
 const Event = require('./models/Event');
 const Merchandise = require('./models/Merchandise');
 const ArtGallery = require('./models/ArtGallery');
+const ForumPost = require('./models/ForumPost'); 
 const app = express();
+memoriesBackend(app); // Initialize memories backend routes
 
 // Middleware
 app.use(cors());
@@ -21,6 +26,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(safezoneRoutes);
 app.use(artistRoutes);
+app.use(vibespaceRoutes);
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/eventhub';
@@ -32,103 +38,6 @@ mongoose.connect(MONGODB_URI, {
 })
 .then(() => console.log('Connected to MongoDB'))
 .catch(err => console.error('MongoDB connection error:', err));
-
-// User Schema
-const userSchema = new mongoose.Schema({
-    firstName: {
-        type: String,
-        required: true,
-        trim: true,
-        minlength: 2
-    },
-    lastName: {
-        type: String,
-        required: true,
-        trim: true,
-        minlength: 2
-    },
-    email: {
-        type: String,
-        required: true,
-        unique: true,
-        lowercase: true,
-        trim: true,
-        match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please enter a valid email']
-    },
-    role: {
-        type: String,
-        required: true,
-        enum: ['user', 'organizer', 'artist', 'admin'],
-        default: 'user'
-    },
-    phone: {
-        type: String,
-        required: true,
-        match: [/^(\+254|0)[17]\d{8}$/, 'Please enter a valid Kenyan phone number']
-    },
-    location: {
-        type: String,
-        required: true,
-        enum: ['nairobi', 'mombasa', 'kisumu', 'nakuru', 'eldoret', 'thika', 'other']
-    },
-    password: {
-        type: String,
-        required: true,
-        minlength: 8
-    },
-    interests: [{
-        type: String,
-        enum: ['music', 'sports', 'arts', 'food', 'tech', 'business', 'health', 'education']
-    }],
-    newsletter: {
-        type: Boolean,
-        default: false
-    },
-    isActive: {
-        type: Boolean,
-        default: true
-    },
-    lastLogin: {
-        type: Date
-    }
-}, {
-    timestamps: true
-});
-//woohoo
-// Pre-save middleware to hash password
-userSchema.pre('save', async function(next) {
-    if (!this.isModified('password')) return next();
-     
-    try {
-        const salt = await bcrypt.genSalt(12);
-        this.password = await bcrypt.hash(this.password, salt);
-        next();
-    } catch (error) {
-        next(error);
-    }
-});
-
-// Method to compare password
-userSchema.methods.comparePassword = async function(candidatePassword) {
-    return bcrypt.compare(candidatePassword, this.password);
-};
-
-// Method to generate JWT token
-userSchema.methods.generateAuthToken = function() {
-    return jwt.sign(
-        { 
-            userId: this._id, 
-            email: this.email,
-            firstName: this.firstName,
-            lastName: this.lastName,
-            role: this.role
-        },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-    );
-};
-
-const User = mongoose.model('User', userSchema);
 
 const adminInviteCodeSchema = new mongoose.Schema({
     code: {

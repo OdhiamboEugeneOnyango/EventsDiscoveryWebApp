@@ -1,54 +1,144 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>VibeSpace - EventHub</title>
-  <link rel="stylesheet" href="vibespace.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="vibespace.css">
+    <title>VibeSpace - Event Forum</title>
+    
 </head>
 <body>
-  <header>
-    <h1>VibeSpace</h1>
-  </header>
+    <!-- Header -->
+    <header>
+        <nav>
+            <div class="logo">EventHub</div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="events.html">Events</a></li>
+                <li><a href="/vibespace">VibeSpace</a></li>
+                <li><a href="about.html">About</a></li>
+            </ul>
+            <div class="auth-buttons">
+                <a href="login.html" class="btn btn-secondary">Login</a>
+                <a href="signUp.html" class="btn btn-primary">Sign Up</a>
+            </div>
+        </nav>
+    </header>
 
-  <main>
-    <section class="general-feed">
-      <h2>General Feed</h2>
-      <form class="post-form">
-        <textarea placeholder="What's hot in your area?"></textarea>
-        <button type="submit">Post</button>
-      </form>
-      <div class="content"></div>
-    </section>
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Event Header -->
+            <div class="event-header fade-in">
+                <div class="event-info">
+                    <div class="event-avatar" id="eventAvatar">🎵</div>
+                    <div class="event-details">
+                        <h1 id="eventTitle">Summer Music Festival 2024</h1>
+                        <div class="event-meta">
+                            <div class="meta-item">
+                                <span>📅</span>
+                                <span id="eventDate">July 15, 2024</span>
+                            </div>
+                            <div class="meta-item">
+                                <span>📍</span>
+                                <span id="eventLocation">Central Park, NYC</span>
+                            </div>
+                            <div class="meta-item">
+                                <span>👥</span>
+                                <span id="eventAttendees">1,234 attending</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="forum-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalMembers">156</div>
+                        <div class="stat-label">Members</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalPosts">89</div>
+                        <div class="stat-label">Posts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="activeToday">23</div>
+                        <div class="stat-label">Active Today</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="onlineNow">12</div>
+                        <div class="stat-label">Online Now</div>
+                    </div>
+                </div>
+            </div>
 
-    <section class="event-threads">
-      <h2>Event Discussions</h2>
-      <form class="post-form">
-        <textarea placeholder="Comment about an event..."></textarea>
-        <button type="submit">Post</button>
-      </form>
-      <div class="content"></div>
-    </section>
+            <!-- Forum Actions -->
+            <div class="forum-actions fade-in">
+                <div class="join-status">
+                    <div class="status-badge status-joined" id="joinStatus">✓ Joined Forum</div>
+                    <span id="joinMessage">You're part of this event community!</span>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn-post" onclick="openNewPostModal()">📝 New Post</button>
+                    <button class="btn btn-secondary" onclick="toggleJoinForum()" id="joinBtn">Leave Forum</button>
+                </div>
+            </div>
 
-    <section class="communities">
-      <h2>Interest Communities</h2>
-      <form class="post-form">
-        <textarea placeholder="Start a topic in your community..."></textarea>
-        <button type="submit">Post</button>
-      </form>
-      <div class="content"></div>
-    </section>
+            <!-- Posts Section -->
+            <div class="posts-section fade-in">
+                <div class="section-header">
+                    <h2 class="section-title">Forum Discussions</h2>
+                </div>
+                
+                <div class="filter-tabs">
+                    <button class="tab active" onclick="filterPosts('all')">All Posts</button>
+                    <button class="tab" onclick="filterPosts('question')">Questions</button>
+                    <button class="tab" onclick="filterPosts('discussion')">Discussions</button>
+                    <button class="tab" onclick="filterPosts('announcement')">Announcements</button>
+                </div>
 
-    <section class="media-reactions">
-      <h2>React to Memories</h2>
-      <form class="post-form">
-        <textarea placeholder="React to a memory..."></textarea>
-        <button type="submit">React</button>
-      </form>
-      <div class="content"></div>
-    </section>
-  </main>
+                <div class="posts-container" id="postsContainer">
+                    <!-- Posts will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </main>
 
-  <script src="vibespace.js"></script>
+    <!-- New Post Modal -->
+    <div class="modal-overlay" id="newPostModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Create New Post</h3>
+                <button class="close-btn" onclick="closeNewPostModal()">&times;</button>
+            </div>
+            
+            <form id="newPostForm">
+                <div class="form-group">
+                    <label for="postType">Post Type</label>
+                    <select id="postType" required>
+                        <option value="">Select post type</option>
+                        <option value="question">Question</option>
+                        <option value="discussion">Discussion</option>
+                        <option value="announcement">Announcement</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="postTitle">Title</label>
+                    <input type="text" id="postTitle" placeholder="Enter post title" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="postContent">Content</label>
+                    <textarea id="postContent" placeholder="Write your post content here..." required></textarea>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeNewPostModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Post</button>
+                </div>
+            </form>
+        </div>
+    </div>
+<script src="vibespace.js"></script>
 </body>
 </html>

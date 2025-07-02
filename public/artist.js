@@ -1,105 +1,29 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Dummy Data for demonstration
-    const artistData = {
-        name: "Anya Sharma",
-        bio: "Anya Sharma is a visionary artist known for her vibrant abstract paintings and thought-provoking sculptures. Her work explores themes of nature, human emotion, and the interconnectedness of life. With a unique blend of traditional techniques and modern digital art, Anya brings a fresh perspective to contemporary art.",
-        profilePic: "https://via.placeholder.com/150/FF6347/FFFFFF?text=Anya", // Example: Tomato color
-        social: {
-            facebook: "https://facebook.com/anyasharmaart",
-            instagram: "https://instagram.com/anyasharma_art",
-            twitter: "https://twitter.com/anyasharmaart",
-            youtube: "https://youtube.com/anyasharmaart"
-        },
-        merchandise: [
-            {
-                id: 1,
-                name: "Abstract Canvas Print 'Harmony'",
-                description: "High-quality Giclee print on canvas, limited edition.",
-                price: 150.00,
-                image: "https://via.placeholder.com/400x300/8A2BE2/FFFFFF?text=Harmony+Print" // Blue Violet
-            },
-            {
-                id: 2,
-                name: "Sculpture 'Growth'",
-                description: "Hand-carved wooden sculpture, unique piece.",
-                price: 750.00,
-                image: "https://via.placeholder.com/400x300/DAA520/FFFFFF?text=Growth+Sculpture" // Goldenrod
-            },
-            {
-                id: 3,
-                name: "Digital Art Poster 'Dreamscape'",
-                description: "Signed and numbered poster, archival ink.",
-                price: 45.00,
-                image: "https://via.placeholder.com/400x300/4682B4/FFFFFF?text=Dreamscape+Poster" // Steel Blue
-            },
-            {
-                id: 4,
-                name: "Artist T-Shirt 'Creative Flow'",
-                description: "100% organic cotton, unisex fit.",
-                price: 25.00,
-                image: "https://via.placeholder.com/400x300/CD5C5C/FFFFFF?text=Art+T-Shirt" // Indian Red
-            }
-        ],
-        upcomingEvents: [
-            {
-                id: 1,
-                title: "Solo Exhibition: Echoes of Color",
-                date: "2025-08-15",
-                location: "The Grand Gallery, New York",
-                time: "7:00 PM - 10:00 PM",
-                ticketLink: "#"
-            },
-            {
-                id: 2,
-                title: "Art Fair: Creative Minds Expo",
-                date: "2025-09-01",
-                location: "Convention Center, London",
-                time: "10:00 AM - 6:00 PM",
-                ticketLink: "#"
-            },
-            {
-                id: 3,
-                title: "Live Painting Performance",
-                date: "2025-10-20",
-                location: "City Park Amphitheater",
-                time: "4:00 PM - 6:00 PM",
-                ticketLink: "#"
-            }
-        ],
-        artGallery: [
-            {
-                id: 1,
-                title: "Serenity",
-                description: "Oil on canvas, 24x36 inches.",
-                image: "https://via.placeholder.com/600x400/6A5ACD/FFFFFF?text=Serenity" // Slate Blue
-            },
-            {
-                id: 2,
-                title: "Urban Pulse",
-                description: "Mixed media on wood, 30x40 inches.",
-                image: "https://via.placeholder.com/600x400/FFD700/000000?text=Urban+Pulse" // Gold
-            },
-            {
-                id: 3,
-                title: "Forest Whisper",
-                description: "Acrylic on linen, 18x24 inches.",
-                image: "https://via.placeholder.com/600x400/3CB371/FFFFFF?text=Forest+Whisper" // Medium Sea Green
-            },
-            {
-                id: 4,
-                title: "Cosmic Dance",
-                description: "Digital art print, 20x20 inches.",
-                image: "https://via.placeholder.com/600x400/800080/FFFFFF?text=Cosmic+Dance" // Purple
-            },
-            {
-                id: 5,
-                title: "Ocean's Embrace",
-                description: "Watercolor on paper, 16x20 inches.",
-                image: "https://via.placeholder.com/600x400/4169E1/FFFFFF?text=Ocean's+Embrace" // Royal Blue
-            }
-        ]
-    };
-
+document.addEventListener('DOMContentLoaded', async () => {
+    // Get the artist ID from the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const artistId = urlParams.get('artistId') || 'defaultArtistId'; // Fallback to a default ID if not found
+    // Fetch artist data from the backend
+    const artistData = await fetchArtistData(artistId);
+    async function fetchArtistData(artistId) {
+        try {
+            // This would connect to your backend API
+            const response = await fetch(`/api/artists/${artistId}`);
+            const artistData = await response.json();
+            return artistData;
+        } catch (error) {
+            console.error('Error fetching artist data:', error);
+            // Fallback to default/empty data
+            return {
+                name: "Artist Name",
+                bio: "Artist bio not available",
+                profilePic: "https://via.placeholder.com/150",
+                social: {},
+                merchandise: [],
+                upcomingEvents: [],
+                artGallery: []
+            };
+        }
+}
 
     // Populate Artist Hero Section
     const artistNameElement = document.getElementById('artistName');
@@ -128,19 +52,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Populate Merchandise Section
     const merchandiseGrid = document.querySelector('.merchandise-grid');
     if (merchandiseGrid) {
-        artistData.merchandise.forEach(item => {
-            const card = document.createElement('div');
-            card.classList.add('merchandise-card');
-            card.innerHTML = `
-                <img src="${item.image}" alt="${item.name}" class="merchandise-image">
-                <div class="merchandise-content">
-                    <h3 class="merchandise-title">${item.name}</h3>
-                    <p class="merchandise-description">${item.description}</p>
-                    <p class="merchandise-price">$${item.price.toFixed(2)}</p>
-                    <button class="buy-btn">Add to Cart</button>
-                </div>
-            `;
-            merchandiseGrid.appendChild(card);
+    artistData.merchandise.forEach(item => {
+        const card = document.createElement('div');
+        card.classList.add('merchandise-card');
+        card.innerHTML = `
+            <img src="${item.image}" alt="${item.name}" class="merchandise-image">
+            <div class="merchandise-content">
+                <h3 class="merchandise-title">${item.name}</h3>
+                <p class="merchandise-description">${item.description}</p>
+                <p class="merchandise-price">$${item.price.toFixed(2)}</p>
+                <button class="buy-btn">Add to Cart</button>
+            </div>
+        `;
+        merchandiseGrid.appendChild(card);
         });
     }
 
@@ -248,16 +172,27 @@ document.addEventListener('DOMContentLoaded', () => {
 highlightArtistNavLink(); // Call on load to set initial active state   
 
 // Simple form submission (for demonstration)
-const contactForm = document.querySelector('.contact-form');
-    if (contactForm) {
-        contactForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            alert('Message sent! (This is a demo. No actual email is sent.)');
-            contactForm.reset();
-        });
-    }
+const contactForm = document.getElementById('contactForm');
+if (contactForm) {
+    contactForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(contactForm);
 
-    // Add Item Form Handlers
+        try {
+            await fetch('/api/contact', {
+                method: 'POST',
+                body: formData
+            });
+            alert('Message sent successfully!');
+            contactForm.reset();
+        } catch (error) {
+            alert('Error sending message. Please try again.');
+        }
+    });
+}
+
+}); 
+// Add Item Form Handlers
 const addMerchandiseBtn = document.getElementById('addMerchandiseBtn');
 const addEventBtn = document.getElementById('addEventBtn');
 const addGalleryBtn = document.getElementById('addGalleryBtn');
@@ -292,5 +227,26 @@ document.querySelectorAll('.cancel-btn').forEach(btn => {
     });
 });
 
+//  function to handle role switching
+function switchToArtistView(userId) {
+    // Check if user has artist role
+    if (userHasArtistRole(userId)) {
+        window.location.href = `artist.html?id=${userId}`;
+    } else {
+        // Redirect to artist registration or show error
+        alert('You need to set up your artist profile first');
+        window.location.href = 'artist-setup.html';
+    }
+}
 
-});
+// Function to check user role 
+async function userHasArtistRole(userId) {
+    try {
+        const response = await fetch(`/api/users/${userId}/roles`);
+        const roles = await response.json();
+        return roles.includes('artist');
+    } catch (error) {
+        return false;
+    }
+}
+

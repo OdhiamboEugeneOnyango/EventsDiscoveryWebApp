@@ -1,112 +1,436 @@
 
-document.addEventListener("DOMContentLoaded", () => {
-  const sections = {
-    general: document.querySelector(".general-feed .content"),
-    threads: document.querySelector(".event-threads .content"),
-    communities: document.querySelector(".communities .content"),
-    media: document.querySelector(".media-reactions .content"),
-  };
+        // Global variables
+        let currentUser = null;
+        let eventData = null;
+        let forumStats = {
+            totalMembers: 0,
+            totalPosts: 0,
+            activeToday: 0,
+            onlineNow: 0
+        };
+        let posts = [];
+        let isLoading = false;
 
-  const samplePosts = [
-    { content: "Who’s going to Afrobeats Night this Friday? 🎶", type: "threads" },
-    { content: "My top 3 food events in Nairobi this semester 🍽️👇", type: "communities" },
-    { content: "Anyone else think the DJ last night was insane? 🔥", type: "threads" },
-    {
-      content: "Missed the event? Here’s what it looked like 🎥👇",
-      type: "media",
-      memoryId: 101,
-      mediaType: "video",
-      mediaSrc: "media/event101.mp4"
-    },
-    {
-      content: "Top dance move caught on cam! 💃",
-      type: "media",
-      memoryId: 102,
-      mediaType: "image",
-      mediaSrc: "media/dance102.jpg"
-    },
-    { content: "Any jazz heads here? Drop your favorite local artist 🎷", type: "communities" }
-  ];
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            const eventId = getEventIdFromUrl();
+            if (!eventId) {
+                showError('Event ID is required');
+                return;
+            }
+            
+            initializePage(eventId);
+        });
 
-  samplePosts.forEach(post => {
-    const postContainer = document.createElement("div");
-    postContainer.classList.add("post");
+        // API Functions
+        async function initializePage(eventId) {
+            showLoading(true);
+            try {
+                await Promise.all([
+                    fetchEventData(eventId),
+                    fetchCurrentUser(),
+                    fetchForumStats(eventId),
+                    fetchPosts(eventId)
+                ]);
+                
+                updateJoinStatus();
+            } catch (error) {
+                console.error('Failed to initialize page:', error);
+                showError('Failed to load forum data');
+            } finally {
+                showLoading(false);
+            }
+        }
 
-    const text = document.createElement("p");
-    text.textContent = post.content;
-    postContainer.appendChild(text);
+        async function fetchEventData(eventId) {
+            try {
+                const response = await fetch(`/api/events/${eventId}`);
+                if (!response.ok) throw new Error('Event not found');
+                
+                const data = await response.json();
+                eventData = data.event;
+                loadEventData();
+            } catch (error) {
+                console.error('Failed to fetch event data:', error);
+                throw error;
+            }
+        }
 
-    // Media preview logic
-    if (post.type === "media" && post.mediaSrc) {
-      const mediaPreview = document.createElement(post.mediaType === "video" ? "video" : "img");
-      mediaPreview.src = post.mediaSrc;
-      mediaPreview.classList.add("media-preview");
-      if (post.mediaType === "video") mediaPreview.controls = true;
-      mediaPreview.onclick = () => showMediaPopup(post);
-      postContainer.appendChild(mediaPreview);
-    }
+        async function fetchCurrentUser() {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUser = data.user;
+                } else {
+                    // User not logged in
+                    currentUser = null;
+                }
+            } catch (error) {
+                console.error('Failed to fetch user data:', error);
+                currentUser = null;
+            }
+        }
 
-    // Reactions
-    const reactionBar = document.createElement("div");
-    reactionBar.classList.add("reactions");
-    ["👍", "😂", "🔥", "💬"].forEach(emoji => {
-      const span = document.createElement("span");
-      span.textContent = emoji;
-      span.classList.add("reaction");
-      reactionBar.appendChild(span);
-    });
-    postContainer.appendChild(reactionBar);
+        async function fetchForumStats(eventId) {
+            try {
+                const response = await fetch(`/api/forums/${eventId}/stats`);
+                if (response.ok) {
+                    const data = await response.json();
+                    forumStats = data.stats;
+                    loadForumStats();
+                }
+            } catch (error) {
+                console.error('Failed to fetch forum stats:', error);
+            }
+        }
 
-    sections[post.type].appendChild(postContainer);
-  });
+        async function fetchPosts(eventId, filter = 'all') {
+            try {
+                const queryParam = filter !== 'all' ? `?type=${filter}` : '';
+                const response = await fetch(`/api/forums/${eventId}/posts${queryParam}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    posts = data.posts;
+                    loadPosts();
+                }
+            } catch (error) {
+                console.error('Failed to fetch posts:', error);
+            }
+        }
 
-  // Submit post
-  document.querySelectorAll(".post-form").forEach(form => {
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      const input = this.querySelector("textarea");
-      const newPost = input.value.trim();
-      if (newPost) {
-        const postEl = document.createElement("div");
-        postEl.classList.add("post");
-        postEl.innerHTML = `<p>${newPost}</p>
-          <div class="reactions"><span>👍</span> <span>😂</span> <span>🔥</span> <span>💬</span></div>`;
-        this.parentElement.querySelector(".content").appendChild(postEl);
-        input.value = "";
-      }
-    });
-  });
+        function loadEventData() {
+            if (!eventData) return;
+            
+            document.getElementById('eventTitle').textContent = eventData.title || eventData.name;
+            document.getElementById('eventDate').textContent = formatDate(eventData.date);
+            document.getElementById('eventLocation').textContent = eventData.location || 'Location TBA';
+            document.getElementById('eventAttendees').textContent = `${(eventData.attendees || 0).toLocaleString()} attending`;
+            
+            // Generate avatar from event title
+            const avatar = eventData.title ? eventData.title.charAt(0).toUpperCase() : '🎉';
+            document.getElementById('eventAvatar').textContent = avatar;
+        }
 
-  // Media popup viewer
-  function showMediaPopup(post) {
-    const popup = document.createElement("div");
-    popup.classList.add("media-popup");
+        function loadForumStats() {
+            document.getElementById('totalMembers').textContent = forumStats.totalMembers || 0;
+            document.getElementById('totalPosts').textContent = forumStats.totalPosts || 0;
+            document.getElementById('activeToday').textContent = forumStats.activeToday || 0;
+            document.getElementById('onlineNow').textContent = forumStats.onlineNow || 0;
+        }
 
-    const media = document.createElement(post.mediaType === "video" ? "video" : "img");
-    media.src = post.mediaSrc;
-    if (post.mediaType === "video") media.controls = true;
+        function formatDate(dateString) {
+            if (!dateString) return 'Date TBA';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+        }
 
-    const desc = document.createElement("p");
-    desc.textContent = post.content;
+        function loadPosts(filter = 'all') {
+            const container = document.getElementById('postsContainer');
+            
+            if (!posts || posts.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #666;">
+                        <p>No posts yet. Be the first to start a discussion!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = posts.map(post => `
+                <div class="post-card">
+                    <div class="post-header">
+                        <div class="user-avatar">${generateAvatar(post.author?.name || post.author)}</div>
+                        <div>
+                            <div class="post-author">${post.author?.name || post.author || 'Anonymous'}</div>
+                            <div class="post-time">${formatTimeAgo(post.createdAt || post.time)}</div>
+                        </div>
+                        <div class="post-type type-${post.type}">${capitalizeFirst(post.type)}</div>
+                    </div>
+                    <div class="post-content">
+                        <h3>${post.title}</h3>
+                        <p>${post.content}</p>
+                    </div>
+                    <div class="post-actions">
+                        <button class="action-btn ${post.isLiked ? 'liked' : ''}" onclick="toggleLike('${post._id || post.id}')">
+                            ${post.isLiked ? '❤️' : '🤍'} ${post.likes || 0}
+                        </button>
+                        <button class="action-btn" onclick="viewReplies('${post._id || post.id}')">
+                            💬 ${post.replies || 0} replies
+                        </button>
+                        <button class="action-btn" onclick="sharePost('${post._id || post.id}')">
+                            🔗 Share
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
 
-    const comments = document.createElement("div");
-    comments.classList.add("popup-comments");
-    comments.innerHTML = "<strong>Comments:</strong><ul><li>🔥🔥🔥</li><li>Iconic moment</li></ul>";
+        function generateAvatar(name) {
+            if (!name) return '👤';
+            return name.split(' ').map(word => word.charAt(0).toUpperCase()).join('').substring(0, 2);
+        }
 
-    const link = document.createElement("a");
-    link.href = `/memories.html#media-${post.memoryId}`;
-    link.textContent = "Go to Memories →";
-    link.classList.add("goto-memories");
+        function capitalizeFirst(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
 
-    const closeBtn = document.createElement("button");
-    closeBtn.textContent = "Close";
-    closeBtn.onclick = () => popup.remove();
+        function formatTimeAgo(dateString) {
+            if (!dateString) return 'Unknown time';
+            
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+            
+            if (diffInMinutes < 1) return 'Just now';
+            if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
+            
+            const diffInHours = Math.floor(diffInMinutes / 60);
+            if (diffInHours < 24) return `${diffInHours} hours ago`;
+            
+            const diffInDays = Math.floor(diffInHours / 24);
+            if (diffInDays < 7) return `${diffInDays} days ago`;
+            
+            return date.toLocaleDateString();
+        }
 
-    popup.appendChild(media);
-    popup.appendChild(desc);
-    popup.appendChild(comments);
-    popup.appendChild(link);
-    popup.appendChild(closeBtn);
-    document.body.appendChild(popup);
-  }
-});
+        async function filterPosts(type) {
+            // Update active tab
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Fetch filtered posts from backend
+            const eventId = getEventIdFromUrl();
+            await fetchPosts(eventId, type);
+        }
+
+        function updateJoinStatus() {
+            const statusBadge = document.getElementById('joinStatus');
+            const joinMessage = document.getElementById('joinMessage');
+            const joinBtn = document.getElementById('joinBtn');
+            
+            if (!currentUser) {
+                statusBadge.className = 'status-badge status-not-joined';
+                statusBadge.textContent = '⚠️ Login Required';
+                joinMessage.textContent = 'Please login to join the forum';
+                joinBtn.textContent = 'Login';
+                joinBtn.onclick = () => window.location.href = '/login';
+                return;
+            }
+            
+            const isJoined = currentUser.joinedForums?.includes(getEventIdFromUrl()) || false;
+            
+            if (isJoined) {
+                statusBadge.className = 'status-badge status-joined';
+                statusBadge.textContent = '✓ Joined Forum';
+                joinMessage.textContent = "You're part of this event community!";
+                joinBtn.textContent = 'Leave Forum';
+                joinBtn.onclick = () => toggleJoinForum();
+            } else {
+                statusBadge.className = 'status-badge status-not-joined';
+                statusBadge.textContent = '⚠️ Not Joined';
+                joinMessage.textContent = 'Join to participate in discussions';
+                joinBtn.textContent = 'Join Forum';
+                joinBtn.onclick = () => toggleJoinForum();
+            }
+        }
+
+        async function toggleJoinForum() {
+            if (!currentUser) {
+                window.location.href = '/login';
+                return;
+            }
+
+            const eventId = getEventIdFromUrl();
+            try {
+                const response = await fetch(`/api/forums/${eventId}/join`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    // Update user's joined forums
+                    if (!currentUser.joinedForums) currentUser.joinedForums = [];
+                    
+                    const isCurrentlyJoined = currentUser.joinedForums.includes(eventId);
+                    if (isCurrentlyJoined) {
+                        currentUser.joinedForums = currentUser.joinedForums.filter(id => id !== eventId);
+                        forumStats.totalMembers--;
+                    } else {
+                        currentUser.joinedForums.push(eventId);
+                        forumStats.totalMembers++;
+                    }
+                    
+                    updateJoinStatus();
+                    loadForumStats();
+                } else {
+                    throw new Error('Failed to join/leave forum');
+                }
+            } catch (error) {
+                console.error('Error toggling forum membership:', error);
+                showError('Failed to update forum membership');
+            }
+        }
+
+        function openNewPostModal() {
+            if (!currentUser) {
+                alert('Please login first to create posts!');
+                window.location.href = '/login';
+                return;
+            }
+            
+            const isJoined = currentUser.joinedForums?.includes(getEventIdFromUrl()) || false;
+            if (!isJoined) {
+                alert('Please join the forum first to create posts!');
+                return;
+            }
+            
+            document.getElementById('newPostModal').classList.add('active');
+        }
+
+        function closeNewPostModal() {
+            document.getElementById('newPostModal').classList.remove('active');
+            document.getElementById('newPostForm').reset();
+        }
+
+        async function toggleLike(postId) {
+            if (!currentUser) {
+                alert('Please login to like posts!');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/posts/${postId}/like`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    // Update the post in the local array
+                    const postIndex = posts.findIndex(p => (p._id || p.id) === postId);
+                    if (postIndex !== -1) {
+                        posts[postIndex].likes = data.likes;
+                        posts[postIndex].isLiked = data.isLiked;
+                        loadPosts();
+                    }
+                } else {
+                    throw new Error('Failed to toggle like');
+                }
+            } catch (error) {
+                console.error('Error toggling like:', error);
+                showError('Failed to update like');
+            }
+        }
+
+        function viewReplies(postId) {
+            // Navigate to detailed post view
+            window.location.href = `/vibespace/post/${postId}?eventId=${getEventIdFromUrl()}`;
+        }
+
+        function sharePost(postId) {
+            const shareUrl = `${window.location.origin}/vibespace/post/${postId}?eventId=${getEventIdFromUrl()}`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Check out this post',
+                    url: shareUrl
+                });
+            } else {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    alert('Share link copied to clipboard!');
+                }).catch(() => {
+                    prompt('Copy this link:', shareUrl);
+                });
+            }
+        }
+
+        // Handle new post form submission
+        document.getElementById('newPostForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!currentUser) {
+                alert('Please login to create posts!');
+                return;
+            }
+
+            const eventId = getEventIdFromUrl();
+            const formData = {
+                eventId: eventId,
+                type: document.getElementById('postType').value,
+                title: document.getElementById('postTitle').value,
+                content: document.getElementById('postContent').value
+            };
+
+            try {
+                const response = await fetch(`/api/forums/${eventId}/posts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Add the new post to the beginning of the posts array
+                    posts.unshift(data.post);
+                    forumStats.totalPosts++;
+                    
+                    loadPosts();
+                    loadForumStats();
+                    closeNewPostModal();
+                    
+                    showSuccess('Post created successfully!');
+                } else {
+                    throw new Error('Failed to create post');
+                }
+            } catch (error) {
+                console.error('Error creating post:', error);
+                showError('Failed to create post');
+            }
+        });
+
+        // Utility functions
+        function getEventIdFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('eventId') || window.location.pathname.split('/').pop();
+        }
+
+        function showLoading(show) {
+            isLoading = show;
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            if (loadingIndicator) {
+                loadingIndicator.style.display = show ? 'block' : 'none';
+            }
+        }
+
+        function showError(message) {
+            // You can implement a toast notification system here
+            console.error(message);
+            alert(message);
+        }
+
+        function showSuccess(message) {
+            // You can implement a toast notification system here
+            console.log(message);
+            alert(message);
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('newPostModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeNewPostModal();
+            }
+        });
+   

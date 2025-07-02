@@ -1,9 +1,23 @@
 const express = require('express');
 const router = express.Router();
+const User = require('./models/User'); 
 const Artist = require('./models/Artist');
 const Merchandise = require('./models/Merchandise');
 const ArtGallery = require('./models/ArtGallery');
 const Event = require('./models/Event');
+
+// Get user roles by user ID
+router.get('/api/users/:id/roles', async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id).select('roles');
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        res.json({ success: true, roles: user.roles });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to fetch user roles' });
+    }
+});
 
 // GET artist profile by artist ID (with all related data)
 router.get('/api/artists/:artistId', async (req, res) => {
