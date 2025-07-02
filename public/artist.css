@@ -706,3 +706,207 @@ footer {
     background: #ccc;
     color: #333;
 }
+
+/* View-Only Banner Styles */
+.view-only-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px 0;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.view-only-banner .container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.view-only-banner i {
+    font-size: 1.2em;
+    color: #f0f0f0;
+}
+
+.view-only-banner span {
+    font-size: 1.1em;
+    font-weight: 500;
+}
+
+.view-only-banner .btn {
+    padding: 8px 16px;
+    font-size: 0.9em;
+    border-radius: 20px;
+    text-decoration: none;
+    background: white;
+    color: #667eea;
+    border: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.view-only-banner .btn:hover {
+    background: #f0f0f0;
+    transform: translateY(-2px);
+}
+
+/* Delete Button Styles (only visible to artist owners) */
+.delete-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.3s ease;
+    margin-left: 10px;
+}
+
+.delete-btn:hover {
+    background: #c0392b;
+    transform: translateY(-2px);
+}
+
+.delete-btn i {
+    font-size: 0.8em;
+}
+
+/* Overlay delete button for gallery items */
+.overlay-delete {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 6px 8px;
+    font-size: 0.8em;
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.gallery-item:hover .overlay-delete {
+    opacity: 1;
+}
+
+/* Form container modifications */
+.add-form-container {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+    border: 1px solid #dee2e6;
+}
+
+.add-form-container.hidden {
+    display: none;
+}
+
+.add-form-container h3 {
+    margin-bottom: 20px;
+    color: #333;
+    font-size: 1.3em;
+}
+
+.item-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.item-form input,
+.item-form textarea {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1em;
+    transition: border-color 0.3s ease;
+}
+
+.item-form input:focus,
+.item-form textarea:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.item-form button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: all 0.3s ease;
+}
+
+.item-form .btn-primary {
+    background: #667eea;
+    color: white;
+}
+
+.item-form .btn-primary:hover {
+    background: #5a6fd8;
+    transform: translateY(-2px);
+}
+
+.item-form .btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.item-form .btn-secondary:hover {
+    background: #5a6268;
+}
+
+/* Add item button styles */
+.add-item-btn {
+    margin-bottom: 20px;
+    padding: 12px 20px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.add-item-btn:hover {
+    background: #218838;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.add-item-btn i {
+    font-size: 0.9em;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+    .view-only-banner .container {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .view-only-banner span {
+        font-size: 1em;
+        text-align: center;
+    }
+    
+    .delete-btn {
+        padding: 6px 10px;
+        font-size: 0.8em;
+    }
+    
+    .add-item-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}

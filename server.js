@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const memoriesBackend = require('./memoriesbackend');
 const safezoneRoutes = require('./safezonebackend');
+const organizerRoutes = require('./organizerbackend');
 const artistRoutes = require('./artistbackend');
 const vibespaceRoutes = require('./vibespacebackend');
 const cors = require('cors');
@@ -17,6 +18,7 @@ const Event = require('./models/Event');
 const Merchandise = require('./models/Merchandise');
 const ArtGallery = require('./models/ArtGallery');
 const ForumPost = require('./models/ForumPost'); 
+const Contact = require('./models/Contact'); 
 const app = express();
 memoriesBackend(app); // Initialize memories backend routes
 
@@ -26,6 +28,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(safezoneRoutes);
 app.use(artistRoutes);
+app.use(organizerRoutes);
 app.use(vibespaceRoutes);
 
 // MongoDB Connection
@@ -541,189 +544,6 @@ app.post('/api/user/events/:eventId/register', requireAuth, requireRole(['user']
         res.status(500).json({
             success: false,
             message: 'Failed to register for event'
-        });
-    }
-});
-
-// ==== ORGANIZER ROUTES (for organizer.html) ====
-app.get('/api/organizer/events', requireAuth, requireRole(['organizer']), async (req, res) => {
-    try {
-        // Get organizer's created events
-        const events = await Event.find({ createdBy: req.user.userId }).sort({ date: -1 });
-        
-        res.json({
-            success: true,
-            events,
-            message: 'Your events loaded successfully'
-        });
-    } catch (error) {
-        console.error('Organizer events error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to load your events'
-        });
-    }
-});
-
-app.post('/api/organizer/events', requireAuth, requireRole(['organizer']), async (req, res) => {
-    try {
-        const eventData = {
-            ...req.body,
-            createdBy: req.user.userId,
-            status: 'active'
-        };
-
-        const event = new Event(eventData);
-        await event.save();
-
-        res.status(201).json({
-            success: true,
-            event,
-            message: 'Event created successfully'
-        });
-    } catch (error) {
-        console.error('Create event error:', error);
-        res.status(400).json({
-            success: false,
-            message: error.message || 'Failed to create event'
-        });
-    }
-});
-
-app.put('/api/organizer/events/:eventId', requireAuth, requireRole(['organizer']), async (req, res) => {
-    try {
-        const { eventId } = req.params;
-        
-        // Make sure organizer can only update their own events
-        const event = await Event.findOne({ 
-            _id: eventId, 
-            createdBy: req.user.userId 
-        });
-
-        if (!event) {
-            return res.status(404).json({
-                success: false,
-                message: 'Event not found or you do not have permission to edit it'
-            });
-        }
-
-        const updatedEvent = await Event.findByIdAndUpdate(
-            eventId, 
-            req.body, 
-            { new: true, runValidators: true }
-        );
-
-        res.json({
-            success: true,
-            event: updatedEvent,
-            message: 'Event updated successfully'
-        });
-    } catch (error) {
-        console.error('Update event error:', error);
-        res.status(400).json({
-            success: false,
-            message: error.message || 'Failed to update event'
-        });
-    }
-});
-
-app.delete('/api/organizer/events/:eventId', requireAuth, requireRole(['organizer']), async (req, res) => {
-    try {
-        const { eventId } = req.params;
-        
-        // Make sure organizer can only delete their own events
-        const event = await Event.findOne({ 
-            _id: eventId, 
-            createdBy: req.user.userId 
-        });
-
-        if (!event) {
-            return res.status(404).json({
-                success: false,
-                message: 'Event not found or you do not have permission to delete it'
-            });
-        }
-
-        await Event.findByIdAndDelete(eventId);
-
-        res.json({
-            success: true,
-            message: 'Event deleted successfully'
-        });
-    } catch (error) {
-        console.error('Delete event error:', error);
-        res.status(400).json({
-            success: false,
-            message: 'Failed to delete event'
-        });
-    }
-});
-
-// ==== ARTIST ROUTES (for artist.html) ====
-app.get('/api/artist/dashboard', requireAuth, requireRole(['artist']), async (req, res) => {
-    try {
-        const user = await User.findById(req.user.userId).select('-password');
-        
-        // Get artist-specific data
-        const upcomingBookings = []; // Implement booking system later
-        const totalPerformances = 0; // Implement performance tracking later
-
-        res.json({
-            success: true,
-            user: {
-                firstName: user.firstName,
-                lastName: user.lastName,
-                role: user.role
-            },
-            stats: {
-                upcomingBookings: upcomingBookings.length,
-                totalPerformances
-            },
-            upcomingBookings,
-            message: `Welcome to your artist dashboard, ${user.firstName}!`
-        });
-    } catch (error) {
-        console.error('Artist dashboard error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to load artist dashboard'
-        });
-    }
-});
-
-app.get('/api/artist/bookings', requireAuth, requireRole(['artist']), async (req, res) => {
-    try {
-        // For now, return empty array - implement booking system later
-        const bookings = [];
-        
-        res.json({
-            success: true,
-            bookings,
-            message: 'Bookings loaded successfully'
-        });
-    } catch (error) {
-        console.error('Artist bookings error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to load bookings'
-        });
-    }
-});
-
-app.post('/api/artist/availability', requireAuth, requireRole(['artist']), async (req, res) => {
-    try {
-        const { availability } = req.body;
-        
-        // For now, just return success - implement availability system later
-        res.json({
-            success: true,
-            message: 'Availability updated successfully'
-        });
-    } catch (error) {
-        console.error('Artist availability error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to update availability'
         });
     }
 });
@@ -1310,14 +1130,6 @@ app.get('/admin', requireAuth, requireRole(['admin']), (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-app.get('/organizer', requireAuth, requireRole(['organizer']), (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'organizer.html'));
-});
-
-app.get('/artist', requireAuth, requireRole(['artist']), (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'artist.html'));
-});
-
 // Serve static files (your HTML, CSS, JS)
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -1358,5 +1170,3 @@ app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Visit: http://localhost:${PORT}`);
 });
-
-module.exports = { Event };
