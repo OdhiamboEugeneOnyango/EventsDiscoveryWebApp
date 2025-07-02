@@ -8,16 +8,14 @@ async function loadEvents() {
         const data = await response.json();
 
         if (data.success) {
-            // Backend returns events with .name (from title)
-            // We'll rename 'name' back to 'title' and fill in mock values for UI display
             currentEvents = data.events.map(event => ({
                 id: event._id,
                 title: event.name || 'Untitled Event',
-                date: 'TBD', // Placeholder — can be replaced if you return real dates
-                location: 'Nairobi', // Placeholder
-                category: 'music', // Placeholder
-                price: 'KSH 0', // Placeholder
-                icon: '🎉' // Default emoji
+                date: 'TBD',
+                location: 'Nairobi',
+                category: 'music',
+                price: 'KSH 0',
+                icon: '🎉'
             }));
             displayEvents(currentEvents);
         } else {
@@ -46,7 +44,7 @@ function performSearch() {
         const matchesSearch = !searchTerm || 
             event.title.toLowerCase().includes(searchTerm) ||
             event.category.toLowerCase().includes(searchTerm);
-        
+
         const matchesCategory = !category || event.category === category;
         const matchesLocation = !location || event.location.toLowerCase() === location;
         const matchesDate = !date || event.date === date;
@@ -59,7 +57,6 @@ function performSearch() {
     displayEvents(filteredEvents);
     document.getElementById('resultsSection').classList.add('active');
 
-    // Smooth scroll to results
     document.getElementById('resultsSection').scrollIntoView({
         behavior: 'smooth'
     });
@@ -109,12 +106,9 @@ function displayEvents(events) {
     `).join('');
 }
 
-// View details
+// ✅ Updated: Redirect to vibespace.html with eventId as a query param
 function viewEventDetails(eventId) {
-    const event = currentEvents.find(e => e.id === eventId);
-    if (event) {
-        alert(`Event Details:\n\nTitle: ${event.title}\nDate: ${event.date}\nLocation: ${event.location}\nPrice: ${event.price}`);
-    }
+    window.location.href = `vibespace.html?eventId=${eventId}`;
 }
 
 // Category quick filter
@@ -129,7 +123,7 @@ function toggleMap() {
     mapView.classList.toggle('active');
 }
 
-// Format date (you can improve this later if needed)
+// Format date
 function formatDate(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
