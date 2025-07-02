@@ -314,25 +314,19 @@ app.post('/api/auth/signup', validateSignupData, async (req, res) => {
 const requireAuth = (req, res, next) => {
     try {
         const token = req.header('Authorization')?.replace('Bearer ', '');
-        
-        if (!token) {
-            return res.status(401).json({
-                success: false,
-                message: 'No token provided'
-            });
-        }
-        
+        if (!token) return res.status(401).json({ success: false, message: 'No token provided' });
+
         const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = decoded;
+        req.user = {
+            userId: decoded.userId, // ✅ ensures consistency
+            role: decoded.role      // ✅ if needed for role-based checks
+        };
         next();
-        
     } catch (error) {
-        return res.status(401).json({
-            success: false,
-            message: 'Invalid token'
-        });
+        return res.status(401).json({ success: false, message: 'Invalid token' });
     }
 };
+
 
 const requireRole = (roles) => {
     return (req, res, next) => {
@@ -353,6 +347,37 @@ const requireRole = (roles) => {
         next();
     };
 };
+
+// ==========================
+// 🔐 GET Authenticated User
+// ==========================
+const getUserProfile = async (req, res) => {
+    try {
+        const token = req.header('Authorization')?.replace('Bearer ', '');
+        if (!token) {
+            return res.status(401).json({ success: false, message: 'No token provided' });
+        }
+
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const user = await User.findById(decoded.userId).select('-password');
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        res.json({ success: true, user });
+    } catch (error) {
+        console.error('Profile error:', error);
+        return res.status(401).json({
+            success: false,
+            message: error.name === 'JsonWebTokenError' ? 'Invalid token' : 'Server error occurred'
+        });
+    }
+};
+
+// 🔁 Reuse this for both routes
+app.get('/api/auth/profile', getUserProfile);
+app.get('/api/auth/me', getUserProfile); // For vibespace.js and others
+
 
 // Create admin invite code (admin only)
 app.post('/api/admin/invite-codes', requireAuth, requireRole(['admin']), async (req, res) => {

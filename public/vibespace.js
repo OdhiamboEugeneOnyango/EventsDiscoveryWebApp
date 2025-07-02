@@ -53,7 +53,11 @@
 
         async function fetchEventData(eventId) {
             try {
-                const response = await fetch(`/api/events/${eventId}`);
+                const token = localStorage.getItem('token');
+                const response = await fetch(`/api/events/${eventId}`, {headers: {
+        'Authorization': `Bearer ${token}`
+                    }
+                });
                 if (!response.ok) throw new Error('Event not found');
                 
                 const data = await response.json();
@@ -67,7 +71,12 @@
 
         async function fetchCurrentUser() {
             try {
-                const response = await fetch('/api/auth/me');
+                const token = localStorage.getItem('token');
+                const response = await fetch('/api/auth/me', {
+    headers: {
+        'Authorization': `Bearer ${token}`
+                }
+            });
                 if (response.ok) {
                     const data = await response.json();
                     currentUser = data.user;
@@ -413,8 +422,10 @@
         // Utility functions
         function getEventIdFromUrl() {
             const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get('eventId') || window.location.pathname.split('/').pop();
+            const id = urlParams.get('eventId');
+            return /^[a-f\d]{24}$/i.test(id) ? id : null; // Valid MongoDB ObjectId
         }
+
 
         function showLoading(show) {
             isLoading = show;
