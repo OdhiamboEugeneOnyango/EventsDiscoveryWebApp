@@ -12,13 +12,22 @@
         let isLoading = false;
 
         // Initialize page
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadEventOptions();
+            const select = document.getElementById('eventSelect');
+            if (select) {
+                select.addEventListener('change', function() {
+                    if (this.value) {
+                        window.location.search = '?eventId=' + encodeURIComponent(this.value);
+                    }
+                });
+            }
+
             const eventId = getEventIdFromUrl();
             if (!eventId) {
-                showError('Event ID is required');
+                // Optionally show a message: "Please select an event to view its forum."
                 return;
             }
-            
             initializePage(eventId);
         });
 
@@ -434,3 +443,24 @@
             }
         });
    
+        // Add this to vibespace.js
+
+async function loadEventOptions() {
+    try {
+        const res = await fetch('/api/events');
+        const data = await res.json();
+        if (data.success && Array.isArray(data.events)) {
+            const select = document.getElementById('eventSelect');
+            select.innerHTML = '<option value="">-- Choose an Event --</option>';
+            data.events.forEach(event => {
+                const opt = document.createElement('option');
+                opt.value = event._id;
+                opt.textContent = event.title;
+                select.appendChild(opt);
+            });
+        }
+    } catch (err) {
+        // Optionally show error
+    }
+}
+
