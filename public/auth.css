@@ -327,8 +327,11 @@ body {
     color: #4267b2;
 }
 
-.social-icon {
-    font-size: 1.2rem;
+.social-icon-img {
+    height: 20px;
+    width: 20px;
+    margin-right: 8px;
+    vertical-align: middle;
 }
 
 .auth-footer {
