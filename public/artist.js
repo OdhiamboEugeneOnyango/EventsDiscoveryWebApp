@@ -1,7 +1,12 @@
 document.addEventListener('DOMContentLoaded', async () => {
     // Get the artist ID from the URL
     const urlParams = new URLSearchParams(window.location.search);
-    const artistId = urlParams.get('artistId') || 'defaultArtistId';
+    const artistId = urlParams.get('artistId');
+        if (!artistId) {
+            alert("No artist selected. Redirecting...");
+            window.location.href = "/explore-artists.html"; // or a default view
+            return;
+        }
     
     // Check user authentication and role
     const currentUser = await getCurrentUser();

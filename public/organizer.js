@@ -48,11 +48,12 @@ class AuthManager {
         if (!token) return false;
 
         try {
-            const response = await fetch('/api/auth/verify', {
+            const response = await fetch('/api/organizer/verify', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
+
 
             if (response.ok) {
                 const data = await response.json();

@@ -156,15 +156,15 @@ const validateSignupData = async (req, res, next) => {
 };
 
 const validateLoginData = (req, res, next) => {
-    const { email, password } = req.body;
-    
-    if (!email || !password) {
+    const { email, password, role } = req.body;
+
+    if (!email || !password || !role) {
         return res.status(400).json({
             success: false,
-            message: 'Email and password are required'
+            message: 'Email, password, and role are required'
         });
     }
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
         return res.status(400).json({
@@ -172,9 +172,18 @@ const validateLoginData = (req, res, next) => {
             message: 'Please enter a valid email address'
         });
     }
-    
+
+    const allowedRoles = ['user', 'organizer', 'artist', 'admin'];
+    if (!allowedRoles.includes(role)) {
+        return res.status(400).json({
+            success: false,
+            message: `Invalid role. Allowed roles are: ${allowedRoles.join(', ')}`
+        });
+    }
+
     next();
 };
+
 
 // Routes
 
@@ -246,6 +255,18 @@ app.post('/api/auth/signup', validateSignupData, async (req, res) => {
             );
         }
         
+        // Auto-create Organizer profile if role is 'organizer'
+        if (role === 'organizer') {
+            const organizerExists = await Organizer.findOne({ user: newUser._id });
+            if (!organizerExists) {
+                const newOrganizer = new Organizer({
+                    organizationName: `${newUser.firstName}'s Organization`,
+                    user: newUser._id
+                });
+                await newOrganizer.save();
+            }
+        }
+
         // Generate token
         const token = newUser.generateAuthToken();
         
@@ -403,11 +424,11 @@ app.get('/api/admin/invite-codes', requireAuth, requireRole(['admin']), async (r
 // Login Route
 app.post('/api/auth/login', validateLoginData, async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, role } = req.body;
         
-        // Find user by email
-        const user = await User.findOne({ email: email.toLowerCase() });
-        
+        //Find user by email and role
+       const user = await User.findOne({ email: email.toLowerCase(), role });
+
         if (!user) {
             return res.status(401).json({
                 success: false,

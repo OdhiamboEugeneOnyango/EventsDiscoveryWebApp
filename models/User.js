@@ -1,5 +1,8 @@
 // User Schema
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
 const userSchema = new mongoose.Schema({
     firstName: {
@@ -95,4 +98,4 @@ userSchema.methods.generateAuthToken = function() {
     );
 };
 
-const User = mongoose.model('User', userSchema);
+module.exports = mongoose.model('User', userSchema);
