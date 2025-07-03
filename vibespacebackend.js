@@ -60,7 +60,7 @@ router.get('/api/events/dropdown', async (req, res) => {
 
         const formattedEvents = events.map(event => ({
             _id: event._id,
-            name: event.title
+            title: event.title
         }));
 
         res.json({ 
