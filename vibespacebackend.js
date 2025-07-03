@@ -51,6 +51,28 @@ router.get('/api/events', async (req, res) => {
     }
 });
 
+// --- GET Events for Dropdown ---
+router.get('/api/events/dropdown', async (req, res) => {
+    try {
+        const events = await Event.find({ status: 'active' })  // Only active events
+            .select('_id title')                               // Minimal fields
+            .sort({ date: -1 });                               // Latest first
+
+        const formattedEvents = events.map(event => ({
+            _id: event._id,
+            name: event.title
+        }));
+
+        res.json({ 
+            success: true, 
+            events: formattedEvents 
+        });
+    } catch (error) {
+        console.error('Error fetching events for dropdown:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch events' });
+    }
+});
+
 // --- GET Single Event ---
 router.get('/api/events/:eventId', optionalAuth, async (req, res) => {
     try {

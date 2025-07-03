@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-//const eventsBackend = require('./eventsbackend');
+const eventsRoutes = require('./eventsbackend');
 const memoriesBackend = require('./memoriesbackend');
 const safezoneRoutes = require('./safezonebackend');
 const organizerRoutes = require('./organizerbackend');
@@ -14,6 +14,8 @@ require('dotenv').config();
 
 //import models
 const User = require('./models/User');
+const Artist = require('./models/Artist');
+const Organizer = require('./models/Organizer');    
 const Memory = require('./models/Memory');
 const Event = require('./models/Event');
 const Merchandise = require('./models/Merchandise');
@@ -24,7 +26,7 @@ const Ticket = require('./models/Ticket');
 const Payment = require('./models/Payment');
 const app = express();
 memoriesBackend(app); // Initialize memories backend routes
-//eventsBackend(app); 
+
 
 
 // Middleware
@@ -35,6 +37,7 @@ app.use(safezoneRoutes);
 app.use(artistRoutes);
 app.use(organizerRoutes);
 app.use(vibespaceRoutes);
+app.use(eventsRoutes); // Use event backend routes
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/eventhub';
@@ -252,24 +255,106 @@ app.post('/api/auth/signup', validateSignupData, async (req, res) => {
         
         await newUser.save();
 
-        // Update invite code with user reference if admin
-        if (role === 'admin') {
-            await AdminInviteCode.findOneAndUpdate(
-                { code: adminInviteCode },
-                { usedBy: newUser._id }
-            );
-        }
+
+         // Create role-specific profiles based on user role
+        let roleProfile = null;
         
-        // Auto-create Organizer profile if role is 'organizer'
-        if (role === 'organizer') {
-            const organizerExists = await Organizer.findOne({ user: newUser._id });
-            if (!organizerExists) {
-                const newOrganizer = new Organizer({
-                    organizationName: `${newUser.firstName}'s Organization`,
-                    user: newUser._id
-                });
-                await newOrganizer.save();
+        try {
+            switch (role) {
+                case 'organizer':
+                    // Check if organizer profile already exists
+                    const existingOrganizer = await Organizer.findOne({ user: newUser._id });
+                    if (!existingOrganizer) {
+                        const newOrganizer = new Organizer({
+                            organizationName: `${newUser.firstName} ${newUser.lastName} Events`, // unique name
+                            user: newUser._id,
+                            description: '',
+                            website: '',
+                            contactEmail: newUser.email, // uses the email from signup
+                            contactPhone: newUser.phone // matches Kenyan phone format validation
+                        });
+
+                        roleProfile = await newOrganizer.save();
+                        console.log('Organizer profile created:', roleProfile._id);
+                    }
+                    break;
+                    
+                case 'artist':
+                        const baseName = `${newUser.firstName} ${newUser.lastName}`;
+                        let artistName = baseName;
+
+                        // Check if artist name already exists
+                        const existingName = await Artist.findOne({ name: artistName });
+                        if (existingName) {
+                            artistName += ' ' + newUser._id.toString().slice(-4);  // Make it unique
+                        }
+
+                        // Check if artist profile already exists for this user
+                        const existingArtist = await Artist.findOne({ user: newUser._id });
+                        if (!existingArtist) {
+                            const newArtist = new Artist({
+                                name: artistName, // ✅ now uses the resolved unique name
+                                bio: '',
+                                profilePic: '',
+                                social: {
+                                    facebook: '',
+                                    instagram: '',
+                                    twitter: '',
+                                    youtube: ''
+                                },
+                                merchandise: [],
+                                artGallery: [],
+                                user: newUser._id
+                            });
+
+                            roleProfile = await newArtist.save();
+                            console.log('Artist profile created:', roleProfile._id);
+                        }
+                        break;
+
+                    
+                case 'admin':
+                    // Check if admin profile already exists
+                    const existingAdmin = await Admin.findOne({ user: newUser._id });
+                    if (!existingAdmin) {
+                        const newAdmin = new Admin({
+                            user: newUser._id,
+                            // Add other default fields based on your Admin schema
+                            permissions: [
+                                'manage_users',
+                                'manage_events',
+                                'manage_content',
+                                'generate_reports',
+                                'system_settings'
+                            ],
+                            department: 'General',
+                            accessLevel: 'full',
+                            lastActivity: new Date(),
+                            isActive: true
+                        });
+                        roleProfile = await newAdmin.save();
+                        console.log('Admin profile created:', roleProfile._id);
+                    }
+                    
+                    // Update invite code with user reference
+                    await AdminInviteCode.findOneAndUpdate(
+                        { code: adminInviteCode },
+                        { usedBy: newUser._id }
+                    );
+                    break;
+                    
+                case 'user':
+                default:
+                    // For regular users, no additional profile needed
+                    // The User document itself contains all necessary information
+                    console.log('Regular user created, no additional profile needed');
+                    break;
             }
+        } catch (profileError) {
+            console.error(`Error creating ${role} profile:`, profileError);
+            // If profile creation fails, we might want to delete the user
+            // Or continue without the profile and handle it later
+            console.warn(`${role} profile creation failed, but user account was created successfully`);
         }
 
         // Generate token

@@ -457,12 +457,10 @@
                 closeNewPostModal();
             }
         });
-   
-        // Add this to vibespace.js
 
 async function loadEventOptions() {
     try {
-        const res = await fetch('/api/events');
+        const res = await fetch('/api/events/dropdown');
         const data = await res.json();
         if (data.success && Array.isArray(data.events)) {
             const select = document.getElementById('eventSelect');

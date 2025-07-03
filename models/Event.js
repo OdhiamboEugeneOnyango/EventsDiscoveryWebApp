@@ -1,7 +1,11 @@
-// This file defines the Event model schema for a MongoDB database using Mongoose.
 const mongoose = require('mongoose');
 
 const eventSchema = new mongoose.Schema({
+    id: {
+        type: Number,
+        required: true,
+        unique: true
+    },
     title: {
         type: String,
         required: true,
@@ -33,29 +37,43 @@ const eventSchema = new mongoose.Schema({
         required: true,
         enum: ['nairobi', 'mombasa', 'kisumu', 'nakuru']
     },
-    organizer: {
-        type: String,
-        required: true
+    coordinates: {
+        lat: { type: Number, required: true },
+        lng: { type: Number, required: true }
     },
     price: {
-    type: Number, // Use a number instead of string
-    default: 0
+        type: Number,
+        default: 0
     },
-    tickets: {
-        general: {
+    ticketTypes: [
+        {
+            type: {
+                type: String,
+                required: true
+            },
             price: {
                 type: Number,
-                default: 0
-            },
-            available: {
-                type: Number,
-                default: 100
+                required: true
             }
         }
+    ],
+    capacity: {
+        type: Number,
+        required: true
     },
-    icon: {
-        type: String,
-        default: '🎉'
+    attendees: {
+        type: Number,
+        default: 0
+    },
+    rating: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 5
+    },
+    reviews: {
+        type: Number,
+        default: 0
     },
     safetyRating: {
         type: Number,
@@ -63,9 +81,21 @@ const eventSchema = new mongoose.Schema({
         max: 5,
         default: 5
     },
-    attendees: {
-        type: Number,
-        default: 0
+    organizer: {
+        type: String,
+        required: true
+    },
+    organizerBio: {
+        type: String,
+        default: ''
+    },
+    icon: {
+        type: String,
+        default: '🎉'
+    },
+    image: {
+        type: String,
+        required: true
     },
     status: {
         type: String,
