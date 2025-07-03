@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const eventsRoutes = require('./eventsbackend');
+//const eventsBackend = require('./eventsbackend');
 const memoriesBackend = require('./memoriesbackend');
 const safezoneRoutes = require('./safezonebackend');
 const organizerRoutes = require('./organizerbackend');
@@ -20,15 +20,17 @@ const Merchandise = require('./models/Merchandise');
 const ArtGallery = require('./models/ArtGallery');
 const ForumPost = require('./models/ForumPost'); 
 const Contact = require('./models/Contact'); 
+const Ticket = require('./models/Ticket');
+const Payment = require('./models/Payment');
 const app = express();
 memoriesBackend(app); // Initialize memories backend routes
-eventsbackend(app); // Initialize events backend routes
+//eventsBackend(app); 
+
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(eventsRoutes);
 app.use(safezoneRoutes);
 app.use(artistRoutes);
 app.use(organizerRoutes);

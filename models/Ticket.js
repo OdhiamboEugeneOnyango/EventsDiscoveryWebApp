@@ -1,102 +1,77 @@
 const mongoose = require('mongoose');
 
 const ticketSchema = new mongoose.Schema({
-    // Reference to the user who purchased the ticket
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
-    
-    // Reference to the event
     event: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Event',
         required: true
     },
-    
-    // Reference to the payment
     payment: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Payment',
         required: true
     },
-    
-    // Ticket details
     ticketNumber: {
         type: String,
         unique: true,
         required: true
     },
-    
     ticketType: {
         type: String,
         enum: ['General Admission', 'VIP', 'Premium', 'Student', 'Early Bird', 'Group'],
         default: 'General Admission'
     },
-    
     quantity: {
         type: Number,
         required: true,
         min: 1,
         max: 10
     },
-    
     unitPrice: {
         type: Number,
         required: true,
         min: 0
     },
-    
     totalAmount: {
         type: Number,
         required: true,
         min: 0
     },
-    
-    // Ticket status
     status: {
         type: String,
         enum: ['active', 'used', 'cancelled', 'refunded', 'expired'],
         default: 'active'
     },
-    
-    // QR code for ticket validation
     qrCode: {
         type: String,
         unique: true
     },
-    
-    // Validation details
     isValidated: {
         type: Boolean,
         default: false
     },
-    
     validatedAt: {
         type: Date
     },
-    
     validatedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     },
-    
-    // Seat information (if applicable)
     seatNumber: {
         type: String
     },
-    
     section: {
         type: String
     },
-    
-    // Transfer details
     originalOwner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     },
-    
     transferHistory: [{
         fromUser: {
             type: mongoose.Schema.Types.ObjectId,
@@ -112,53 +87,40 @@ const ticketSchema = new mongoose.Schema({
         },
         reason: String
     }],
-    
-    // Refund details
     refundRequested: {
         type: Boolean,
         default: false
     },
-    
     refundRequestDate: {
         type: Date
     },
-    
     refundReason: {
         type: String
     },
-    
     refundStatus: {
         type: String,
         enum: ['pending', 'approved', 'rejected', 'processed'],
         default: 'pending'
     },
-    
     refundAmount: {
         type: Number,
         min: 0
     },
-    
-    // Additional metadata
     purchaseSource: {
         type: String,
         enum: ['web', 'mobile', 'admin', 'partner'],
         default: 'web'
     },
-    
     specialRequirements: {
         type: String
     },
-    
     notes: {
         type: String
     },
-    
-    // Timestamps
     purchaseDate: {
         type: Date,
         default: Date.now
     },
-    
     expiryDate: {
         type: Date
     }
@@ -168,22 +130,18 @@ const ticketSchema = new mongoose.Schema({
     toObject: { virtuals: true }
 });
 
-// Indexes for better performance
+// Indexes for better performance (no duplicates)
 ticketSchema.index({ user: 1, event: 1 });
-ticketSchema.index({ ticketNumber: 1 });
-ticketSchema.index({ qrCode: 1 });
 ticketSchema.index({ status: 1 });
 ticketSchema.index({ purchaseDate: -1 });
 
 // Pre-save middleware to generate ticket number and QR code
-ticketSchema.pre('save', async function(next) {
+ticketSchema.pre('save', async function (next) {
     if (this.isNew) {
-        // Generate unique ticket number
         const timestamp = Date.now().toString(36);
         const random = Math.random().toString(36).substr(2, 5);
         this.ticketNumber = `TKT-${timestamp}-${random}`.toUpperCase();
-        
-        // Generate QR code data
+
         const qrData = {
             ticketId: this._id,
             eventId: this.event,
@@ -192,14 +150,12 @@ ticketSchema.pre('save', async function(next) {
             quantity: this.quantity
         };
         this.qrCode = Buffer.from(JSON.stringify(qrData)).toString('base64');
-        
-        // Set expiry date based on event date
+
         if (this.event) {
             try {
                 const Event = mongoose.model('Event');
                 const event = await Event.findById(this.event);
                 if (event) {
-                    // Set expiry to 24 hours after event end time
                     this.expiryDate = new Date(event.date + 'T' + (event.endTime || '23:59'));
                     this.expiryDate.setHours(this.expiryDate.getHours() + 24);
                 }
@@ -211,105 +167,73 @@ ticketSchema.pre('save', async function(next) {
     next();
 });
 
-// Virtual for ticket validation URL
-ticketSchema.virtual('validationUrl').get(function() {
+// Virtuals
+ticketSchema.virtual('validationUrl').get(function () {
     return `/api/tickets/${this._id}/validate`;
 });
 
-// Virtual for days until expiry
-ticketSchema.virtual('daysUntilExpiry').get(function() {
+ticketSchema.virtual('daysUntilExpiry').get(function () {
     if (!this.expiryDate) return null;
     const now = new Date();
     const diffTime = this.expiryDate - now;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 });
 
-// Virtual for ticket price per unit
-ticketSchema.virtual('pricePerTicket').get(function() {
+ticketSchema.virtual('pricePerTicket').get(function () {
     return this.quantity > 0 ? this.totalAmount / this.quantity : 0;
 });
 
-// Instance method to validate ticket
-ticketSchema.methods.validateTicket = function(validatorId) {
-    if (this.status !== 'active') {
-        throw new Error('Ticket is not active');
-    }
-    
-    if (this.isValidated) {
-        throw new Error('Ticket already validated');
-    }
-    
-    if (this.expiryDate && new Date() > this.expiryDate) {
-        throw new Error('Ticket has expired');
-    }
-    
+// Instance methods
+ticketSchema.methods.validateTicket = function (validatorId) {
+    if (this.status !== 'active') throw new Error('Ticket is not active');
+    if (this.isValidated) throw new Error('Ticket already validated');
+    if (this.expiryDate && new Date() > this.expiryDate) throw new Error('Ticket has expired');
+
     this.isValidated = true;
     this.validatedAt = new Date();
     this.validatedBy = validatorId;
     this.status = 'used';
-    
     return this.save();
 };
 
-// Instance method to transfer ticket
-ticketSchema.methods.transferTo = function(newUserId, reason = '') {
-    if (this.status !== 'active') {
-        throw new Error('Cannot transfer inactive ticket');
-    }
-    
-    if (this.isValidated) {
-        throw new Error('Cannot transfer validated ticket');
-    }
-    
-    // Add to transfer history
+ticketSchema.methods.transferTo = function (newUserId, reason = '') {
+    if (this.status !== 'active') throw new Error('Cannot transfer inactive ticket');
+    if (this.isValidated) throw new Error('Cannot transfer validated ticket');
+
     this.transferHistory.push({
         fromUser: this.user,
         toUser: newUserId,
-        reason: reason
+        reason
     });
-    
-    // Set original owner if not already set
+
     if (!this.originalOwner) {
         this.originalOwner = this.user;
     }
-    
-    // Transfer ownership
+
     this.user = newUserId;
-    
     return this.save();
 };
 
-// Instance method to request refund
-ticketSchema.methods.requestRefund = function(reason) {
-    if (this.status !== 'active') {
-        throw new Error('Cannot refund inactive ticket');
-    }
-    
-    if (this.isValidated) {
-        throw new Error('Cannot refund validated ticket');
-    }
-    
-    if (this.refundRequested) {
-        throw new Error('Refund already requested');
-    }
-    
+ticketSchema.methods.requestRefund = function (reason) {
+    if (this.status !== 'active') throw new Error('Cannot refund inactive ticket');
+    if (this.isValidated) throw new Error('Cannot refund validated ticket');
+    if (this.refundRequested) throw new Error('Refund already requested');
+
     this.refundRequested = true;
     this.refundRequestDate = new Date();
     this.refundReason = reason;
     this.refundStatus = 'pending';
-    
     return this.save();
 };
 
-// Static method to get tickets by user
-ticketSchema.statics.getByUser = function(userId, options = {}) {
+// Static methods
+ticketSchema.statics.getByUser = function (userId, options = {}) {
     const query = this.find({ user: userId });
-    
+
     if (options.status) {
         query.where({ status: options.status });
     }
-    
+
     if (options.upcoming) {
         query.populate({
             path: 'event',
@@ -318,25 +242,23 @@ ticketSchema.statics.getByUser = function(userId, options = {}) {
     } else {
         query.populate('event');
     }
-    
+
     return query.populate('payment').sort({ purchaseDate: -1 });
 };
 
-// Static method to get tickets by event
-ticketSchema.statics.getByEvent = function(eventId, options = {}) {
+ticketSchema.statics.getByEvent = function (eventId, options = {}) {
     const query = this.find({ event: eventId });
-    
+
     if (options.status) {
         query.where({ status: options.status });
     }
-    
+
     return query.populate('user', 'name email phone')
                 .populate('payment')
                 .sort({ purchaseDate: -1 });
 };
 
-// Static method to get ticket statistics
-ticketSchema.statics.getStats = function(eventId) {
+ticketSchema.statics.getStats = function (eventId) {
     return this.aggregate([
         { $match: { event: mongoose.Types.ObjectId(eventId) } },
         {

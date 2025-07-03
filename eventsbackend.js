@@ -6,25 +6,8 @@ const crypto = require('crypto');
 const moment = require('moment');
 require('dotenv').config();
 
-const app = express();
-const PORT = process.env.PORT || 5000;
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.static('public'));
-
-// MongoDB connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/eventhub', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-});
-
 // Import models
 const Event = require('./models/Event');
-const User = require('./models/User');
-const Artist = require('./models/Artist');
-const Organizer = require('./models/Organizer');
 const Ticket = require('./models/Ticket');
 const Payment = require('./models/Payment');
 
@@ -76,16 +59,13 @@ function generateMpesaPassword(timestamp) {
 }
 
 // Routes
-
-// Get all events
+module.exports = function(app) {
+// Get all active events
 app.get('/api/events', async (req, res) => {
     try {
-        const events = await Event.find({ status: 'active' })
-            .populate('organizer', 'name email')
-            .sort({ date: 1 });
+        const events = await Event.find({ status: 'active' }).sort({ date: 1 });
         res.json(events);
     } catch (error) {
-        console.error('Error fetching events:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -93,194 +73,13 @@ app.get('/api/events', async (req, res) => {
 // Get single event
 app.get('/api/events/:id', async (req, res) => {
     try {
-        const event = await Event.findById(req.params.id)
-            .populate('organizer', 'name email bio')
-            .populate('artists', 'name genre');
-        
+        const event = await Event.findById(req.params.id);
         if (!event) {
             return res.status(404).json({ message: 'Event not found' });
-        }
-        
+        }        
         res.json(event);
     } catch (error) {
         console.error('Error fetching event:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// Create event
-app.post('/api/events', async (req, res) => {
-    try {
-        const eventData = req.body;
-        const event = new Event(eventData);
-        await event.save();
-        res.status(201).json(event);
-    } catch (error) {
-        console.error('Error creating event:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// Update event
-app.put('/api/events/:id', async (req, res) => {
-    try {
-        const event = await Event.findByIdAndUpdate(
-            req.params.id,
-            req.body,
-            { new: true }
-        );
-        
-        if (!event) {
-            return res.status(404).json({ message: 'Event not found' });
-        }
-        
-        res.json(event);
-    } catch (error) {
-        console.error('Error updating event:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// Delete event
-app.delete('/api/events/:id', async (req, res) => {
-    try {
-        const event = await Event.findByIdAndDelete(req.params.id);
-        
-        if (!event) {
-            return res.status(404).json({ message: 'Event not found' });
-        }
-        
-        res.json({ message: 'Event deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting event:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// User registration
-app.post('/api/users/register', async (req, res) => {
-    try {
-        const { name, email, password, phone } = req.body;
-        
-        // Check if user exists
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ message: 'User already exists' });
-        }
-        
-        const user = new User({ name, email, password, phone });
-        await user.save();
-        
-        // Remove password from response
-        const userResponse = user.toObject();
-        delete userResponse.password;
-        
-        res.status(201).json(userResponse);
-    } catch (error) {
-        console.error('Error registering user:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// User login
-app.post('/api/users/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        
-        const user = await User.findOne({ email });
-        if (!user || !(await user.comparePassword(password))) {
-            return res.status(401).json({ message: 'Invalid credentials' });
-        }
-        
-        // Remove password from response
-        const userResponse = user.toObject();
-        delete userResponse.password;
-        
-        res.json(userResponse);
-    } catch (error) {
-        console.error('Error logging in user:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// Get user profile
-app.get('/api/users/:id', async (req, res) => {
-    try {
-        const user = await User.findById(req.params.id).select('-password');
-        
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        
-        res.json(user);
-    } catch (error) {
-        console.error('Error fetching user:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// Update user profile
-app.put('/api/users/:id', async (req, res) => {
-    try {
-        const user = await User.findByIdAndUpdate(
-            req.params.id,
-            req.body,
-            { new: true }
-        ).select('-password');
-        
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        
-        res.json(user);
-    } catch (error) {
-        console.error('Error updating user:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// Get organizers
-app.get('/api/organizers', async (req, res) => {
-    try {
-        const organizers = await Organizer.find({ status: 'active' });
-        res.json(organizers);
-    } catch (error) {
-        console.error('Error fetching organizers:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// Create organizer
-app.post('/api/organizers', async (req, res) => {
-    try {
-        const organizer = new Organizer(req.body);
-        await organizer.save();
-        res.status(201).json(organizer);
-    } catch (error) {
-        console.error('Error creating organizer:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// Get artists
-app.get('/api/artists', async (req, res) => {
-    try {
-        const artists = await Artist.find({ status: 'active' });
-        res.json(artists);
-    } catch (error) {
-        console.error('Error fetching artists:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// Create artist
-app.post('/api/artists', async (req, res) => {
-    try {
-        const artist = new Artist(req.body);
-        await artist.save();
-        res.status(201).json(artist);
-    } catch (error) {
-        console.error('Error creating artist:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -596,21 +395,4 @@ app.use((err, req, res, next) => {
     res.status(500).json({ message: 'Internal server error' });
 });
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-    console.log('SIGTERM received, shutting down gracefully');
-    process.exit(0);
-});
-
-process.on('SIGINT', () => {
-    console.log('SIGINT received, shutting down gracefully');
-    process.exit(0);
-});
-
-module.exports = app;
+};

@@ -26,22 +26,27 @@ class EventsManager {
 
     // Load events from backend
     async loadEvents() {
-        try {
-            const response = await fetch('/api/events');
-            if (response.ok) {
-                this.events = await response.json();
-                this.filteredEvents = [...this.events];
-                this.displayEvents();
-            } else {
-                console.error('Failed to load events');
-                this.loadSampleEvents(); // Fallback to sample data
-            }
-        } catch (error) {
-            console.error('Error loading events:', error);
-            this.loadSampleEvents(); // Fallback to sample data
+    try {
+        const response = await fetch('/api/events');
+        if (response.ok) {
+            const data = await response.json();
+            this.events = data.events || [];
+            this.filteredEvents = [...this.events];
+            this.displayEvents();
+        } else {
+            console.error('Failed to load events');
+            this.events = [];
+            this.filteredEvents = [];
+            this.displayEvents();
         }
+    } catch (error) {
+        console.error('Error loading events:', error);
+        this.events = [];
+        this.filteredEvents = [];
+        this.displayEvents();
     }
-
+}
+/*
     // Fallback sample events
     loadSampleEvents() {
         this.events = [
@@ -174,7 +179,7 @@ class EventsManager {
         this.filteredEvents = [...this.events];
         this.displayEvents();
     }
-
+*/
     // Setup event listeners
     setupEventListeners() {
         // Search functionality

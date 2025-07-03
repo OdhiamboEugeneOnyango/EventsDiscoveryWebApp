@@ -78,6 +78,27 @@ router.get('/', async (req, res) => {
     }
 });
 
+// @route   GET /api/artists/search/:query
+// @desc    Search artists by name or bio
+// @access  Public
+router.get('/search/:query', async (req, res) => {
+    try {
+        const searchQuery = req.params.query;
+        const artists = await Artist.find({
+            isActive: true,
+            $or: [
+                { name: { $regex: searchQuery, $options: 'i' } },
+                { bio: { $regex: searchQuery, $options: 'i' } }
+            ]
+        }).select('name profilePic bio');
+        
+        res.json(artists);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 // @route   GET /api/artists/:id
 // @desc    Get artist by ID with all details
 // @access  Public
@@ -497,27 +518,6 @@ router.delete('/:id', [
         );
         
         res.json({ msg: 'Artist profile deactivated' });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-});
-
-// @route   GET /api/artists/search/:query
-// @desc    Search artists by name or bio
-// @access  Public
-router.get('/search/:query', async (req, res) => {
-    try {
-        const searchQuery = req.params.query;
-        const artists = await Artist.find({
-            isActive: true,
-            $or: [
-                { name: { $regex: searchQuery, $options: 'i' } },
-                { bio: { $regex: searchQuery, $options: 'i' } }
-            ]
-        }).select('name profilePic bio');
-        
-        res.json(artists);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
