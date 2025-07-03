@@ -1,435 +1,853 @@
-let currentEvents = [];
-let currentView = 'grid';
-let ticketQuantity = 1;
-let currentEventId = null;
-let userInteractions = {
-    interested: [],
-    going: [],
-    saved: []
-};
-
-document.addEventListener('DOMContentLoaded', function() {
-    loadEvents();
-    setupEventListeners();
-    console.log('EventHub Events page loaded successfully!');
-});
-
-// Fetch events from backend API
-async function loadEvents() {
-    try {
-        const response = await fetch('/api/events');
-        const data = await response.json();
-
-        console.log('API Response:', data);
-        console.log('Events array:', data.events);
-        console.log('First event:', data.events?.[0]);
-        console.log('First event title:', data.events?.[0]?.title);
+// Events Frontend JavaScript
+class EventsManager {
+    constructor() {
+        this.events = [];
+        this.filteredEvents = [];
+        this.currentView = 'grid';
+        this.map = null;
+        this.markers = [];
+        this.selectedEvent = null;
+        this.currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+        this.userInteractions = JSON.parse(localStorage.getItem('userInteractions')) || {
+            interested: [],
+            going: [],
+            saved: []
+        };
         
-        if (data.success) {
-            currentEvents = data.events;
-            displayEvents(currentEvents);
-            updateResultsCount();
-        } else {
-            displayEvents([]);
-            updateResultsCount();
+        this.init();
+    }
+
+    async init() {
+        await this.loadEvents();
+        this.setupEventListeners();
+        this.initializeMap();
+        this.updateResultsCount();
+    }
+
+    // Load events from backend
+    async loadEvents() {
+        try {
+            const response = await fetch('/api/events');
+            if (response.ok) {
+                this.events = await response.json();
+                this.filteredEvents = [...this.events];
+                this.displayEvents();
+            } else {
+                console.error('Failed to load events');
+                this.loadSampleEvents(); // Fallback to sample data
+            }
+        } catch (error) {
+            console.error('Error loading events:', error);
+            this.loadSampleEvents(); // Fallback to sample data
         }
-    } catch (error) {
-        console.error('Error loading events:', error);
-        displayEvents([]);
-        updateResultsCount();
     }
-}
 
-// Setup event listeners
-function setupEventListeners() {
-    document.getElementById('searchInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') performSearch();
-    });
-    document.getElementById('category').addEventListener('change', performSearch);
-    document.getElementById('location').addEventListener('change', performSearch);
-    document.getElementById('date').addEventListener('change', performSearch);
-    document.getElementById('price').addEventListener('change', performSearch);
-    document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('modal')) closeAllModals();
-    });
-    document.querySelectorAll('input[name="payment"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            togglePaymentForm(this.value);
-        });
-    });
-}
-
-// Search functionality
-function performSearch() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const category = document.getElementById('category').value;
-    const location = document.getElementById('location').value;
-    const date = document.getElementById('date').value;
-    const price = document.getElementById('price').value;
-
-    let filteredEvents = currentEvents.filter(event => {
-        const matchesSearch = !searchTerm ||
-            event.title.toLowerCase().includes(searchTerm) ||
-            event.category.toLowerCase().includes(searchTerm) ||
-            event.venue.toLowerCase().includes(searchTerm);
-
-        const matchesCategory = !category || event.category === category;
-        const matchesLocation = !location || event.location.toLowerCase() === location;
-        const matchesDate = !date || event.date === date;
-        const matchesPrice = !price || filterByPrice(event.price, price);
-
-        return matchesSearch && matchesCategory && matchesLocation && matchesDate && matchesPrice;
-    });
-
-    displayEvents(filteredEvents);
-    updateResultsCount(filteredEvents.length);
-}
-
-// Filter by price range
-function filterByPrice(eventPrice, priceRange) {
-    const price = Number(eventPrice) || 0;
-    switch(priceRange) {
-        case 'free': return price === 0;
-        case '0-1000': return price >= 0 && price <= 1000;
-        case '1000-5000': return price > 1000 && price <= 5000;
-        case '5000+': return price > 5000;
-        default: return true;
-    }
-}
-
-function displayEvents(events) {
-    const eventGrid = document.getElementById('eventGrid');
-    if (!eventGrid) return;
-    
-    if (events.length === 0) {
-        eventGrid.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: #666;">
-                <h3>No events found</h3>
-                <p>Try adjusting your search criteria</p>
-            </div>
-        `;
-        return;
-    }
-    
-    console.log('Displaying events:', events); // Debug line
-    
-    eventGrid.innerHTML = events.map(event => {
-        console.log('Processing event:', event); // Debug line
+    // Fallback sample events
+    loadSampleEvents() {
+        this.events = [
+            {
+                id: 1,
+                title: "Nairobi Jazz Festival",
+                description: "Experience the best jazz music from local and international artists. A night of soulful melodies and rhythmic beats that will leave you wanting more.",
+                date: "2025-07-15",
+                time: "19:00",
+                location: "Nairobi",
+                venue: "Carnivore Restaurant",
+                coordinates: { lat: -1.2921, lng: 36.8219 },
+                price: 2500,
+                category: "music",
+                organizer: "Jazz Kenya",
+                organizerBio: "Professional jazz event organizers with 10+ years experience",
+                icon: "🎵",
+                image: "/images/jazz-festival.jpg",
+                capacity: 500,
+                attendees: 234,
+                rating: 4.5,
+                reviews: 89,
+                safetyRating: 5,
+                ticketTypes: [
+                    { type: "General Admission", price: 2500 },
+                    { type: "VIP", price: 5000 }
+                ]
+            },
+            {
+                id: 2,
+                title: "Nairobi Marathon",
+                description: "Join thousands of runners in Kenya's premier marathon event. Run through the beautiful streets of Nairobi while supporting local charities.",
+                date: "2025-07-20",
+                time: "06:00",
+                location: "Nairobi",
+                venue: "Uhuru Park",
+                coordinates: { lat: -1.2921, lng: 36.8219 },
+                price: 1500,
+                category: "sports",
+                organizer: "Athletics Kenya",
+                organizerBio: "Official athletics governing body in Kenya",
+                icon: "🏃‍♂️",
+                image: "/images/marathon.jpg",
+                capacity: 10000,
+                attendees: 7500,
+                rating: 4.8,
+                reviews: 156,
+                safetyRating: 5,
+                ticketTypes: [
+                    { type: "Full Marathon", price: 1500 },
+                    { type: "Half Marathon", price: 1000 }
+                ]
+            },
+            {
+                id: 3,
+                title: "Art Exhibition: Modern Kenya",
+                description: "Discover contemporary Kenyan art from emerging and established artists. A showcase of the country's vibrant artistic culture.",
+                date: "2025-07-25",
+                time: "10:00",
+                location: "Nairobi",
+                venue: "National Museum",
+                coordinates: { lat: -1.2921, lng: 36.8219 },
+                price: 500,
+                category: "arts",
+                organizer: "Kenya Art Society",
+                organizerBio: "Promoting Kenyan art and culture since 1980",
+                icon: "🎨",
+                image: "/images/art-exhibition.jpg",
+                capacity: 200,
+                attendees: 89,
+                rating: 4.2,
+                reviews: 34,
+                safetyRating: 4,
+                ticketTypes: [
+                    { type: "General Entry", price: 500 },
+                    { type: "Guided Tour", price: 800 }
+                ]
+            },
+            {
+                id: 4,
+                title: "Tech Conference 2025",
+                description: "Leading technology conference bringing together innovators, entrepreneurs, and tech enthusiasts from across East Africa.",
+                date: "2025-08-01",
+                time: "09:00",
+                location: "Nairobi",
+                venue: "KICC",
+                coordinates: { lat: -1.2921, lng: 36.8219 },
+                price: 3000,
+                category: "tech",
+                organizer: "Tech Kenya",
+                organizerBio: "Leading tech community in Kenya",
+                icon: "💻",
+                image: "/images/tech-conference.jpg",
+                capacity: 1000,
+                attendees: 456,
+                rating: 4.7,
+                reviews: 78,
+                safetyRating: 5,
+                ticketTypes: [
+                    { type: "Standard", price: 3000 },
+                    { type: "Premium", price: 5000 }
+                ]
+            },
+            {
+                id: 5,
+                title: "Nairobi Food Festival",
+                description: "Taste the best of Kenyan and international cuisine. Food vendors, cooking demonstrations, and cultural performances.",
+                date: "2025-08-10",
+                time: "11:00",
+                location: "Nairobi",
+                venue: "Tatu City",
+                coordinates: { lat: -1.2921, lng: 36.8219 },
+                price: 0,
+                category: "food",
+                organizer: "Foodies Kenya",
+                organizerBio: "Celebrating Kenya's culinary heritage",
+                icon: "🍽️",
+                image: "/images/food-festival.jpg",
+                capacity: 2000,
+                attendees: 1200,
+                rating: 4.6,
+                reviews: 203,
+                safetyRating: 4,
+                ticketTypes: [
+                    { type: "Free Entry", price: 0 }
+                ]
+            }
+        ];
         
-        return `
-            <div class="event-card ${currentView === 'list' ? 'list-view' : ''}" onclick="openEventModal('${event._id || event.id}')">
-                <div class="event-image">
-                    <span>${event.icon || '🎉'}</span>
+        this.filteredEvents = [...this.events];
+        this.displayEvents();
+    }
+
+    // Setup event listeners
+    setupEventListeners() {
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.performSearch(e.target.value);
+            });
+        }
+
+        // Filter changes
+        ['category', 'location', 'date', 'price'].forEach(filterId => {
+            const filterElement = document.getElementById(filterId);
+            if (filterElement) {
+                filterElement.addEventListener('change', () => this.applyFilters());
+            }
+        });
+
+        // Payment method selection
+        const paymentMethods = document.querySelectorAll('input[name="payment"]');
+        paymentMethods.forEach(method => {
+            method.addEventListener('change', (e) => {
+                this.handlePaymentMethodChange(e.target.value);
+            });
+        });
+
+        // Modal close on outside click
+        window.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                this.closeEventModal();
+                this.closePurchaseModal();
+            }
+        });
+    }
+
+    // Initialize map
+    async initializeMap() {
+        try {
+            // Using Leaflet.js with OpenStreetMap (free alternative to Google Maps)
+            if (typeof L === 'undefined') {
+                // Load Leaflet if not already loaded
+                await this.loadLeaflet();
+            }
+
+            // Initialize map centered on Nairobi
+            this.map = L.map('mapMarkers').setView([-1.2921, 36.8219], 12);
+
+            // Add OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(this.map);
+
+            // Add event markers
+            this.updateMapMarkers();
+        } catch (error) {
+            console.error('Error initializing map:', error);
+            // Fallback to simple text-based map
+            this.initializeFallbackMap();
+        }
+    }
+
+    // Load Leaflet library
+    loadLeaflet() {
+        return new Promise((resolve, reject) => {
+            if (typeof L !== 'undefined') {
+                resolve();
+                return;
+            }
+
+            // Load CSS
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css';
+            document.head.appendChild(link);
+
+            // Load JS
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    // Fallback map for when Leaflet fails
+    initializeFallbackMap() {
+        const mapContainer = document.getElementById('mapMarkers');
+        if (mapContainer) {
+            mapContainer.innerHTML = `
+                <div class="fallback-map">
+                    <h4>Event Locations</h4>
+                    <div class="location-list" id="locationList"></div>
                 </div>
-                <div class="event-content">
-                    <h3 class="event-title">${event.title || 'Event Title'}</h3>
-                    <div class="event-details">
-                        <p>📅 ${event.date ? formatDate(event.date) : 'Date TBD'} • ${event.time || 'Time TBD'}</p>
-                        <p>📍 ${event.venue || 'Venue TBD'}, ${event.location || 'Location TBD'}</p>
+            `;
+            this.updateFallbackMap();
+        }
+    }
+
+    // Update fallback map
+    updateFallbackMap() {
+        const locationList = document.getElementById('locationList');
+        if (!locationList) return;
+
+        const locations = {};
+        this.filteredEvents.forEach(event => {
+            if (!locations[event.location]) {
+                locations[event.location] = [];
+            }
+            locations[event.location].push(event);
+        });
+
+        locationList.innerHTML = Object.entries(locations).map(([location, events]) => `
+            <div class="location-group">
+                <h5>📍 ${location}</h5>
+                <div class="location-events">
+                    ${events.map(event => `
+                        <span class="location-event" onclick="eventsManager.showEventDetails(${event.id})">
+                            ${event.icon} ${event.title}
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Update map markers
+    updateMapMarkers() {
+        if (!this.map) return;
+
+        // Clear existing markers
+        this.markers.forEach(marker => this.map.removeLayer(marker));
+        this.markers = [];
+
+        // Add new markers
+        this.filteredEvents.forEach(event => {
+            if (event.coordinates) {
+                const marker = L.marker([event.coordinates.lat, event.coordinates.lng])
+                    .addTo(this.map)
+                    .bindPopup(`
+                        <div class="map-popup">
+                            <h4>${event.title}</h4>
+                            <p>${event.icon} ${event.venue}</p>
+                            <p>📅 ${this.formatDate(event.date)} at ${event.time}</p>
+                            <p>💰 ${event.price === 0 ? 'Free' : `KSH ${event.price.toLocaleString()}`}</p>
+                            <button onclick="eventsManager.showEventDetails(${event.id})" class="btn btn-primary btn-sm">
+                                View Details
+                            </button>
+                        </div>
+                    `);
+                
+                this.markers.push(marker);
+            }
+        });
+    }
+
+    // Search functionality
+    performSearch(query = '') {
+        const searchInput = document.getElementById('searchInput');
+        if (!query && searchInput) {
+            query = searchInput.value.toLowerCase();
+        }
+
+        if (!query) {
+            this.filteredEvents = [...this.events];
+        } else {
+            this.filteredEvents = this.events.filter(event => 
+                event.title.toLowerCase().includes(query) ||
+                event.description.toLowerCase().includes(query) ||
+                event.venue.toLowerCase().includes(query) ||
+                event.organizer.toLowerCase().includes(query) ||
+                event.category.toLowerCase().includes(query)
+            );
+        }
+
+        this.applyFilters();
+    }
+
+    // Apply filters
+    applyFilters() {
+        let filtered = [...this.filteredEvents];
+
+        // Category filter
+        const category = document.getElementById('category')?.value;
+        if (category) {
+            filtered = filtered.filter(event => event.category === category);
+        }
+
+        // Location filter
+        const location = document.getElementById('location')?.value;
+        if (location) {
+            filtered = filtered.filter(event => event.location.toLowerCase() === location.toLowerCase());
+        }
+
+        // Date filter
+        const date = document.getElementById('date')?.value;
+        if (date) {
+            filtered = filtered.filter(event => event.date === date);
+        }
+
+        // Price filter
+        const price = document.getElementById('price')?.value;
+        if (price) {
+            filtered = filtered.filter(event => {
+                switch (price) {
+                    case 'free':
+                        return event.price === 0;
+                    case '0-1000':
+                        return event.price >= 0 && event.price <= 1000;
+                    case '1000-5000':
+                        return event.price > 1000 && event.price <= 5000;
+                    case '5000+':
+                        return event.price > 5000;
+                    default:
+                        return true;
+                }
+            });
+        }
+
+        this.filteredEvents = filtered;
+        this.displayEvents();
+        this.updateResultsCount();
+        this.updateMapMarkers();
+        this.updateFallbackMap();
+    }
+
+    // Display events
+    displayEvents() {
+        const eventGrid = document.getElementById('eventGrid');
+        if (!eventGrid) return;
+
+        if (this.filteredEvents.length === 0) {
+            eventGrid.innerHTML = `
+                <div class="no-events">
+                    <h3>No events found</h3>
+                    <p>Try adjusting your search criteria or filters.</p>
+                </div>
+            `;
+            return;
+        }
+
+        eventGrid.className = `event-${this.currentView}`;
+        eventGrid.innerHTML = this.filteredEvents.map(event => this.createEventCard(event)).join('');
+    }
+
+    // Create event card
+    createEventCard(event) {
+        const isInterested = this.userInteractions.interested.includes(event.id);
+        const isGoing = this.userInteractions.going.includes(event.id);
+        const isSaved = this.userInteractions.saved.includes(event.id);
+
+        return `
+            <div class="event-card" onclick="eventsManager.showEventDetails(${event.id})">
+                <div class="event-image">
+                    <span class="event-icon">${event.icon}</span>
+                    <div class="event-badges">
+                        ${event.price === 0 ? '<span class="badge badge-free">Free</span>' : ''}
+                        ${isInterested ? '<span class="badge badge-interested">❤️</span>' : ''}
+                        ${isGoing ? '<span class="badge badge-going">✅</span>' : ''}
+                        ${isSaved ? '<span class="badge badge-saved">🔖</span>' : ''}
                     </div>
-                    <div class="event-price">${event.price || 'Free'}</div>
-                    <div class="event-actions-preview">
-                        <span class="quick-action" onclick="event.stopPropagation(); quickInterest('${event._id || event.id}')">
-                            ${userInteractions.interested.includes(event._id || event.id) ? '❤️' : '🤍'} Interested
-                        </span>
-                        <span class="quick-action" onclick="event.stopPropagation(); quickSave('${event._id || event.id}')">
-                            ${userInteractions.saved.includes(event._id || event.id) ? '🔖' : '📝'} Save
-                        </span>
+                </div>
+                
+                <div class="event-content">
+                    <h3 class="event-title">${event.title}</h3>
+                    <p class="event-description">${event.description.substring(0, 100)}...</p>
+                    
+                    <div class="event-meta">
+                        <div class="meta-item">
+                            <span class="meta-icon">📅</span>
+                            <span>${this.formatDate(event.date)} at ${event.time}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">📍</span>
+                            <span>${event.venue}, ${event.location}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">💰</span>
+                            <span>${event.price === 0 ? 'Free' : `KSH ${event.price.toLocaleString()}`}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="event-stats">
+                        <div class="stat">
+                            <span class="rating">⭐ ${event.rating}</span>
+                            <span class="reviews">(${event.reviews} reviews)</span>
+                        </div>
+                        <div class="stat">
+                            <span class="attendees">👥 ${event.attendees}/${event.capacity}</span>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
-    }).join('');
-}
-
-// Format date
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric'
-    });
-}
-
-// Update results count
-function updateResultsCount(count) {
-    if (typeof count === 'undefined') count = currentEvents.length;
-    document.getElementById('resultsCount').textContent = `${count} event${count !== 1 ? 's' : ''} found`;
-}
-
-// View toggle functions
-function toggleView(view) {
-    currentView = view;
-    const eventGrid = document.getElementById('eventGrid');
-    document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById(view + 'View').classList.add('active');
-    if (view === 'list') {
-        eventGrid.classList.add('list-view');
-    } else {
-        eventGrid.classList.remove('list-view');
     }
-    displayEvents(currentEvents);
+
+    // Show event details modal
+    showEventDetails(eventId) {
+        const event = this.events.find(e => e.id === eventId);
+        if (!event) return;
+
+        this.selectedEvent = event;
+        
+        // Populate modal content
+        document.getElementById('modalEventTitle').textContent = event.title;
+        document.getElementById('modalEventDate').textContent = `${this.formatDate(event.date)} at ${event.time}`;
+        document.getElementById('modalEventLocation').textContent = event.location;
+        document.getElementById('modalEventVenue').textContent = event.venue;
+        document.getElementById('modalEventPrice').textContent = event.price === 0 ? 'Free' : `KSH ${event.price.toLocaleString()}`;
+        document.getElementById('modalEventOrganizer').textContent = event.organizer;
+        document.getElementById('modalEventDescription').textContent = event.description;
+        document.getElementById('modalEventIcon').textContent = event.icon;
+        document.getElementById('organizerName').textContent = event.organizer;
+        document.getElementById('organizerBio').textContent = event.organizerBio;
+        document.getElementById('ticketPrice').textContent = `KSH ${event.price.toLocaleString()}`;
+        document.getElementById('totalPrice').textContent = `KSH ${event.price.toLocaleString()}`;
+
+        // Update interaction buttons
+        this.updateInteractionButtons();
+
+        // Show modal
+        document.getElementById('eventModal').style.display = 'block';
+    }
+
+    // Update interaction buttons
+    updateInteractionButtons() {
+        if (!this.selectedEvent) return;
+
+        const eventId = this.selectedEvent.id;
+        const interestBtn = document.getElementById('interestBtn');
+        const goingBtn = document.getElementById('goingBtn');
+        const saveBtn = document.getElementById('saveBtn');
+
+        // Update interest button
+        if (this.userInteractions.interested.includes(eventId)) {
+            interestBtn.innerHTML = '💔 Remove Interest';
+            interestBtn.classList.add('active');
+        } else {
+            interestBtn.innerHTML = '❤️ Interested';
+            interestBtn.classList.remove('active');
+        }
+
+        // Update going button
+        if (this.userInteractions.going.includes(eventId)) {
+            goingBtn.innerHTML = '❌ Not Going';
+            goingBtn.classList.add('active');
+        } else {
+            goingBtn.innerHTML = '✅ Going';
+            goingBtn.classList.remove('active');
+        }
+
+        // Update save button
+        if (this.userInteractions.saved.includes(eventId)) {
+            saveBtn.innerHTML = '🗑️ Remove';
+            saveBtn.classList.add('active');
+        } else {
+            saveBtn.innerHTML = '🔖 Save';
+            saveBtn.classList.remove('active');
+        }
+    }
+
+    // Close event modal
+    closeEventModal() {
+        document.getElementById('eventModal').style.display = 'none';
+        this.selectedEvent = null;
+    }
+
+    // Toggle view
+    toggleView(view) {
+        this.currentView = view;
+        
+        // Update button states
+        document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`${view}View`).classList.add('active');
+        
+        // Update display
+        this.displayEvents();
+    }
+
+    // Toggle map
+    toggleMap() {
+        const mapSection = document.getElementById('mapSection');
+        const mapToggle = document.getElementById('mapToggle');
+        
+        if (mapSection.style.display === 'none' || !mapSection.style.display) {
+            mapSection.style.display = 'block';
+            mapToggle.classList.add('active');
+            
+            // Refresh map if it exists
+            if (this.map) {
+                setTimeout(() => this.map.invalidateSize(), 100);
+            }
+        } else {
+            mapSection.style.display = 'none';
+            mapToggle.classList.remove('active');
+        }
+    }
+
+    // User interactions
+    toggleInterest() {
+        if (!this.selectedEvent) return;
+        
+        const eventId = this.selectedEvent.id;
+        const index = this.userInteractions.interested.indexOf(eventId);
+        
+        if (index > -1) {
+            this.userInteractions.interested.splice(index, 1);
+        } else {
+            this.userInteractions.interested.push(eventId);
+        }
+        
+        this.saveUserInteractions();
+        this.updateInteractionButtons();
+    }
+
+    toggleGoing() {
+        if (!this.selectedEvent) return;
+        
+        const eventId = this.selectedEvent.id;
+        const index = this.userInteractions.going.indexOf(eventId);
+        
+        if (index > -1) {
+            this.userInteractions.going.splice(index, 1);
+        } else {
+            this.userInteractions.going.push(eventId);
+        }
+        
+        this.saveUserInteractions();
+        this.updateInteractionButtons();
+    }
+
+    saveEvent() {
+        if (!this.selectedEvent) return;
+        
+        const eventId = this.selectedEvent.id;
+        const index = this.userInteractions.saved.indexOf(eventId);
+        
+        if (index > -1) {
+            this.userInteractions.saved.splice(index, 1);
+        } else {
+            this.userInteractions.saved.push(eventId);
+        }
+        
+        this.saveUserInteractions();
+        this.updateInteractionButtons();
+    }
+
+    saveUserInteractions() {
+        localStorage.setItem('userInteractions', JSON.stringify(this.userInteractions));
+    }
+
+    shareEvent() {
+        if (!this.selectedEvent) return;
+        
+        const shareData = {
+            title: this.selectedEvent.title,
+            text: this.selectedEvent.description,
+            url: window.location.href + `?event=${this.selectedEvent.id}`
+        };
+        
+        if (navigator.share) {
+            navigator.share(shareData);
+        } else {
+            // Fallback - copy to clipboard
+            navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
+            alert('Event details copied to clipboard!');
+        }
+    }
+
+    // Ticket quantity management
+    changeQuantity(change) {
+        const quantityElement = document.getElementById('ticketQuantity');
+        const currentQuantity = parseInt(quantityElement.textContent);
+        const newQuantity = Math.max(1, Math.min(10, currentQuantity + change));
+        
+        quantityElement.textContent = newQuantity;
+        
+        // Update total price
+        if (this.selectedEvent) {
+            const totalPrice = this.selectedEvent.price * newQuantity;
+            document.getElementById('totalPrice').textContent = `KSH ${totalPrice.toLocaleString()}`;
+        }
+    }
+
+    // Purchase ticket
+    purchaseTicket() {
+        if (!this.selectedEvent) return;
+        
+        const quantity = parseInt(document.getElementById('ticketQuantity').textContent);
+        const totalPrice = this.selectedEvent.price * quantity;
+        
+        // Populate purchase modal
+        document.getElementById('purchaseEventTitle').textContent = this.selectedEvent.title;
+        document.getElementById('purchaseQuantity').textContent = `${quantity}x`;
+        document.getElementById('purchaseTotal').textContent = `KSH ${totalPrice.toLocaleString()}`;
+        
+        // Show purchase modal
+        document.getElementById('purchaseModal').style.display = 'block';
+    }
+
+    // Close purchase modal
+    closePurchaseModal() {
+        document.getElementById('purchaseModal').style.display = 'none';
+    }
+
+    // Handle payment method change
+    handlePaymentMethodChange(method) {
+        const mpesaForm = document.getElementById('mpesaForm');
+        
+        if (method === 'mpesa') {
+            mpesaForm.style.display = 'block';
+        } else {
+            mpesaForm.style.display = 'none';
+        }
+    }
+
+    // Process payment
+    async processPayment() {
+        const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+        const quantity = parseInt(document.getElementById('ticketQuantity').textContent);
+        const totalAmount = this.selectedEvent.price * quantity;
+        
+        if (paymentMethod === 'mpesa') {
+            const phoneNumber = document.getElementById('mpesaNumber').value;
+            
+            if (!phoneNumber) {
+                alert('Please enter your M-Pesa number');
+                return;
+            }
+            
+            await this.processMpesaPayment(phoneNumber, totalAmount);
+        } else {
+            // Handle card payment
+            await this.processCardPayment(totalAmount);
+        }
+    }
+
+    // Process M-Pesa payment
+    async processMpesaPayment(phoneNumber, amount) {
+        try {
+            const response = await fetch('/api/payments/mpesa', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    phoneNumber,
+                    amount,
+                    eventId: this.selectedEvent.id,
+                    quantity: parseInt(document.getElementById('ticketQuantity').textContent)
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                alert('Payment initiated! Please check your phone for the M-Pesa prompt.');
+                this.closePurchaseModal();
+                this.closeEventModal();
+            } else {
+                alert(`Payment failed: ${result.message}`);
+            }
+        } catch (error) {
+            console.error('Payment error:', error);
+            alert('Payment failed. Please try again.');
+        }
+    }
+
+    // Process card payment
+    async processCardPayment(amount) {
+        // Placeholder for card payment integration
+        alert('Card payment integration coming soon!');
+    }
+
+    // Join group chat
+    joinGroup() {
+        if (!this.selectedEvent) return;
+        
+        // This would typically integrate with a chat service
+        alert(`Joining group chat for ${this.selectedEvent.title}...`);
+    }
+
+    // Show all reviews
+    showAllReviews() {
+        // This would typically open a separate reviews modal
+        alert('Reviews modal coming soon!');
+    }
+
+    // Update results count
+    updateResultsCount() {
+        const resultsCount = document.getElementById('resultsCount');
+        if (resultsCount) {
+            resultsCount.textContent = `${this.filteredEvents.length} events found`;
+        }
+    }
+
+    // Format date
+    formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
+}
+
+// Global functions for HTML onclick handlers
+function performSearch() {
+    eventsManager.performSearch();
+}
+
+function toggleView(view) {
+    eventsManager.toggleView(view);
 }
 
 function toggleMap() {
-    const mapSection = document.getElementById('mapSection');
-    const mapToggle = document.getElementById('mapToggle');
-    if (mapSection.classList.contains('active')) {
-        mapSection.classList.remove('active');
-        mapToggle.classList.remove('active');
-    } else {
-        mapSection.classList.add('active');
-        mapToggle.classList.add('active');
-        populateMapMarkers();
-    }
-}
-
-function populateMapMarkers() {
-    const mapMarkers = document.getElementById('mapMarkers');
-    mapMarkers.innerHTML = `
-        <div style="text-align: center;">
-            <h4>Event Locations</h4>
-            ${currentEvents.map(event => `
-                <div style="margin: 10px; padding: 10px; background: white; border-radius: 8px; display: inline-block; cursor: pointer;" onclick="openEventModal('${event._id || event.id}')">
-                    ${event.icon || ''} ${event.title}<br>
-                    <small>${event.venue}, ${event.location}</small>
-                </div>
-            `).join('')}
-        </div>
-    `;
-}
-
-// Event modal functions
-function openEventModal(eventId) {
-    const event = currentEvents.find(e => (e._id || e.id) == eventId);
-    if (!event) return;
-
-    currentEventId = eventId;
-    ticketQuantity = 1;
-
-    document.getElementById('modalEventTitle').textContent = event.title;
-    document.getElementById('modalEventIcon').textContent = event.icon || '';
-    document.getElementById('modalEventDate').textContent = `${formatDate(event.date)} at ${event.time}`;
-    document.getElementById('modalEventLocation').textContent = event.location;
-    document.getElementById('modalEventVenue').textContent = event.venue;
-    document.getElementById('modalEventPrice').textContent = event.price;
-    document.getElementById('modalEventOrganizer').textContent = event.organizer;
-    document.getElementById('modalEventDescription').textContent = event.description;
-
-    const safetyStars = '⭐'.repeat(event.safetyRating || 0);
-    document.getElementById('safetyRating').textContent = safetyStars;
-
-    const ticketPrice = event.tickets && event.tickets.general ? event.tickets.general.price : 0;
-    document.getElementById('ticketPrice').textContent = ticketPrice === 0 ? 'Free' : `KSH ${ticketPrice.toLocaleString()}`;
-    document.getElementById('ticketQuantity').textContent = ticketQuantity;
-    updateTotalPrice();
-
-    document.getElementById('organizerName').textContent = event.organizer;
-    document.getElementById('organizerBio').textContent = `Organizing events since 2020`;
-    document.getElementById('groupMembers').textContent = `${event.attendees || 0} members`;
-
-    updateActionButtonStates(eventId);
-
-    document.getElementById('eventModal').classList.add('active');
-    document.body.style.overflow = 'hidden';
+    eventsManager.toggleMap();
 }
 
 function closeEventModal() {
-    document.getElementById('eventModal').classList.remove('active');
-    document.body.style.overflow = 'auto';
-    currentEventId = null;
-}
-
-function closeAllModals() {
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.classList.remove('active');
-    });
-    document.body.style.overflow = 'auto';
-}
-
-// Ticket quantity functions
-function changeQuantity(change) {
-    const newQuantity = ticketQuantity + change;
-    if (newQuantity >= 1 && newQuantity <= 10) {
-        ticketQuantity = newQuantity;
-        document.getElementById('ticketQuantity').textContent = ticketQuantity;
-        updateTotalPrice();
-    }
-}
-
-function updateTotalPrice() {
-    if (!currentEventId) return;
-    const event = currentEvents.find(e => (e._id || e.id) == currentEventId);
-    const ticketPrice = event.tickets && event.tickets.general ? event.tickets.general.price : 0;
-    const total = ticketPrice * ticketQuantity;
-    document.getElementById('totalPrice').textContent = total === 0 ? 'Free' : `KSH ${total.toLocaleString()}`;
-}
-
-// User interaction functions
-function toggleInterest() {
-    if (!currentEventId) return;
-    const index = userInteractions.interested.indexOf(currentEventId);
-    const btn = document.getElementById('interestBtn');
-    if (index > -1) {
-        userInteractions.interested.splice(index, 1);
-        btn.textContent = '🤍 Interested';
-        btn.classList.remove('active');
-    } else {
-        userInteractions.interested.push(currentEventId);
-        btn.textContent = '❤️ Interested';
-        btn.classList.add('active');
-    }
-    displayEvents(currentEvents);
-}
-
-function toggleGoing() {
-    if (!currentEventId) return;
-    const index = userInteractions.going.indexOf(currentEventId);
-    const btn = document.getElementById('goingBtn');
-    if (index > -1) {
-        userInteractions.going.splice(index, 1);
-        btn.textContent = '⭕ Going';
-        btn.classList.remove('active');
-    } else {
-        userInteractions.going.push(currentEventId);
-        btn.textContent = '✅ Going';
-        btn.classList.add('active');
-    }
-}
-
-function saveEvent() {
-    if (!currentEventId) return;
-    const index = userInteractions.saved.indexOf(currentEventId);
-    const btn = document.getElementById('saveBtn');
-    if (index > -1) {
-        userInteractions.saved.splice(index, 1);
-        btn.textContent = '📝 Save';
-        btn.classList.remove('active');
-    } else {
-        userInteractions.saved.push(currentEventId);
-        btn.textContent = '🔖 Saved';
-        btn.classList.add('active');
-    }
-    displayEvents(currentEvents);
-}
-
-function shareEvent() {
-    if (!currentEventId) return;
-    const event = currentEvents.find(e => (e._id || e.id) == currentEventId);
-    const shareText = `Check out this event: ${event.title} on ${formatDate(event.date)} at ${event.venue}!`;
-    if (navigator.share) {
-        navigator.share({
-            title: event.title,
-            text: shareText,
-            url: window.location.href
-        });
-    } else {
-        navigator.clipboard.writeText(shareText).then(() => {
-            alert('Event details copied to clipboard!');
-        });
-    }
-}
-
-function updateActionButtonStates(eventId) {
-    const interestBtn = document.getElementById('interestBtn');
-    const goingBtn = document.getElementById('goingBtn');
-    const saveBtn = document.getElementById('saveBtn');
-    if (userInteractions.interested.includes(eventId)) {
-        interestBtn.textContent = '❤️ Interested';
-        interestBtn.classList.add('active');
-    } else {
-        interestBtn.textContent = '🤍 Interested';
-        interestBtn.classList.remove('active');
-    }
-    if (userInteractions.going.includes(eventId)) {
-        goingBtn.textContent = '✅ Going';
-        goingBtn.classList.add('active');
-    } else {
-        goingBtn.textContent = '⭕ Going';
-        goingBtn.classList.remove('active');
-    }
-    if (userInteractions.saved.includes(eventId)) {
-        saveBtn.textContent = '🔖 Saved';
-        saveBtn.classList.add('active');
-    } else {
-        saveBtn.textContent = '📝 Save';
-        saveBtn.classList.remove('active');
-    }
-}
-
-// Quick action functions (for event cards)
-function quickInterest(eventId) {
-    const index = userInteractions.interested.indexOf(eventId);
-    if (index > -1) {
-        userInteractions.interested.splice(index, 1);
-    } else {
-        userInteractions.interested.push(eventId);
-    }
-    displayEvents(currentEvents);
-}
-
-function quickSave(eventId) {
-    const index = userInteractions.saved.indexOf(eventId);
-    if (index > -1) {
-        userInteractions.saved.splice(index, 1);
-    } else {
-        userInteractions.saved.push(eventId);
-    }
-    displayEvents(currentEvents);
-}
-
-// Purchase functions
-function purchaseTicket() {
-    if (!currentEventId) return;
-    const event = currentEvents.find(e => (e._id || e.id) == currentEventId);
-    document.getElementById('purchaseEventTitle').textContent = event.title;
-    document.getElementById('purchaseQuantity').textContent = `${ticketQuantity}x`;
-    const ticketPrice = event.tickets && event.tickets.general ? event.tickets.general.price : 0;
-    const total = ticketPrice * ticketQuantity;
-    document.getElementById('purchaseTotal').textContent = total === 0 ? 'Free' : `KSH ${total.toLocaleString()}`;
-    document.getElementById('purchaseModal').classList.add('active');
+    eventsManager.closeEventModal();
 }
 
 function closePurchaseModal() {
-    document.getElementById('purchaseModal').classList.remove('active');
+    eventsManager.closePurchaseModal();
 }
 
-function togglePaymentForm(paymentMethod) {
-    const mpesaForm = document.getElementById('mpesaForm');
-    if (mpesaForm) {
-        mpesaForm.style.display = paymentMethod === 'mpesa' ? 'block' : 'none';
-    }
+function changeQuantity(change) {
+    eventsManager.changeQuantity(change);
 }
 
-function processPayment(button) {
-    const event = currentEvents.find(e => (e._id || e.id) == currentEventId);
-    const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
-    const loadingText = 'Processing payment...';
-    const originalText = button.textContent;
-    button.textContent = loadingText;
-    button.disabled = true;
-    setTimeout(() => {
-        button.textContent = originalText;
-        button.disabled = false;
-        closePurchaseModal();
-        closeEventModal();
-        if (!userInteractions.going.includes(currentEventId)) {
-            userInteractions.going.push(currentEventId);
-        }
-        alert(`🎉 Payment successful! You're going to ${event.title}. Check your email for tickets.`);
-        displayEvents(currentEvents);
-    }, 2000);
+function purchaseTicket() {
+    eventsManager.purchaseTicket();
 }
 
-// Group and organizer functions
+function processPayment() {
+    eventsManager.processPayment();
+}
+
+function toggleInterest() {
+    eventsManager.toggleInterest();
+}
+
+function toggleGoing() {
+    eventsManager.toggleGoing();
+}
+
+function saveEvent() {
+    eventsManager.saveEvent();
+}
+
+function shareEvent() {
+    eventsManager.shareEvent();
+}
+
 function joinGroup() {
-    if (!currentEventId) return;
-    const event = currentEvents.find(e => (e._id || e.id) == currentEventId);
-    alert(`Joined the group chat for ${event.title}! You'll receive a notification with the chat link.`);
+    eventsManager.joinGroup();
 }
 
 function showAllReviews() {
-    alert('Reviews feature coming soon! This would show all event reviews and ratings.');
+    eventsManager.showAllReviews();
 }
 
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    window.eventsManager = new EventsManager();
+});
+
+// Hide map section initially
+document.addEventListener('DOMContentLoaded', () => {
+    const mapSection = document.getElementById('mapSection');
+    if (mapSection) {
+        mapSection.style.display = 'none';
+    }
+});

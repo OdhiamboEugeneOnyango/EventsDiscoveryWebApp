@@ -22,6 +22,7 @@ const ForumPost = require('./models/ForumPost');
 const Contact = require('./models/Contact'); 
 const app = express();
 memoriesBackend(app); // Initialize memories backend routes
+eventsbackend(app); // Initialize events backend routes
 
 // Middleware
 app.use(cors());
@@ -1139,6 +1140,10 @@ app.get('/login', (req, res) => {
 
 app.get('/signup', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'signup.html'));
+});
+
+app.get('/events', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'events.html')); // adjust path as needed
 });
 
 // Import and use the memories backend

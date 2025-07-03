@@ -1,48 +1,144 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    // Get the artist ID from the URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const artistId = urlParams.get('artistId');
-        if (!artistId) {
-            alert("No artist selected. Redirecting...");
-            window.location.href = "/explore-artists.html"; // or a default view
-            return;
+    // Global variables
+    let currentUser = null;
+    let currentArtistId = null;
+    let isArtistOwner = false;
+    let hasArtistRole = false;
+    let allArtists = [];
+    
+    // Initialize the page
+    await initializePage();
+    
+    async function initializePage() {
+        // Get current user information
+        currentUser = await getCurrentUser();
+        
+        // Load all artists for dropdown
+        await loadArtistDropdown();
+        
+        // Check URL parameters for pre-selected artist
+        const urlParams = new URLSearchParams(window.location.search);
+        const artistId = urlParams.get('artistId');
+        
+        if (artistId) {
+            // Set dropdown to the specified artist
+            const artistSelect = document.getElementById('artistSelect');
+            artistSelect.value = artistId;
+            await loadArtistProfile(artistId);
         }
+        
+        // Setup dropdown change handler
+        setupArtistDropdownHandler();
+    }
     
-    // Check user authentication and role
-    const currentUser = await getCurrentUser();
-    const isArtistOwner = await checkIfArtistOwner(currentUser?.id, artistId);
-    const hasArtistRole = currentUser ? await userHasArtistRole(currentUser.id) : false;
+    // Load all artists for the dropdown
+    async function loadArtistDropdown() {
+        try {
+            const response = await fetch('/api/artists');
+            if (response.ok) {
+                allArtists = await response.json();
+                populateArtistDropdown(allArtists);
+            } else {
+                console.error('Failed to load artists');
+            }
+        } catch (error) {
+            console.error('Error loading artists:', error);
+        }
+    }
     
-    // Initialize the page based on user permissions
-    initializePageBasedOnRole(isArtistOwner, hasArtistRole);
+    // Populate the artist dropdown
+    function populateArtistDropdown(artists) {
+        const artistSelect = document.getElementById('artistSelect');
+        artistSelect.innerHTML = '<option value="">Select an artist...</option>';
+        
+        artists.forEach(artist => {
+            const option = document.createElement('option');
+            option.value = artist.id;
+            option.textContent = artist.name;
+            artistSelect.appendChild(option);
+        });
+    }
     
-    // Fetch artist data from the backend
-    const artistData = await fetchArtistData(artistId);
-
+    // Setup dropdown change handler
+    function setupArtistDropdownHandler() {
+        const artistSelect = document.getElementById('artistSelect');
+        artistSelect.addEventListener('change', async (e) => {
+            const selectedArtistId = e.target.value;
+            
+            if (selectedArtistId) {
+                // Update URL without page reload
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.set('artistId', selectedArtistId);
+                window.history.pushState({}, '', newUrl);
+                
+                // Load the selected artist's profile
+                await loadArtistProfile(selectedArtistId);
+            } else {
+                // Clear the profile if no artist selected
+                clearArtistProfile();
+                // Remove artistId from URL
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.delete('artistId');
+                window.history.pushState({}, '', newUrl);
+            }
+        });
+    }
+    
+    // Load artist profile data
+    async function loadArtistProfile(artistId) {
+        showLoadingSpinner(true);
+        
+        try {
+            // Fetch artist data
+            const artistData = await fetchArtistData(artistId);
+            
+            if (!artistData) {
+                showErrorMessage('Artist profile not found');
+                return;
+            }
+            
+            // Update global variables
+            currentArtistId = artistId;
+            
+            // Check permissions
+            if (currentUser) {
+                isArtistOwner = await checkIfArtistOwner(currentUser.id, artistId);
+                hasArtistRole = await userHasArtistRole(currentUser.id);
+            }
+            
+            // Initialize page based on permissions
+            initializePageBasedOnRole(isArtistOwner, hasArtistRole);
+            
+            // Populate artist data
+            await populateArtistData(artistData);
+            
+        } catch (error) {
+            console.error('Error loading artist profile:', error);
+            showErrorMessage('Failed to load artist profile');
+        } finally {
+            showLoadingSpinner(false);
+        }
+    }
+    
+    // Fetch artist data from backend
     async function fetchArtistData(artistId) {
         try {
             const response = await fetch(`/api/artists/${artistId}`);
-            const artistData = await response.json();
-            return artistData;
+            if (response.ok) {
+                return await response.json();
+            }
+            return null;
         } catch (error) {
             console.error('Error fetching artist data:', error);
-            return {
-                name: "Artist Name",
-                bio: "Artist bio not available",
-                profilePic: "https://via.placeholder.com/150",
-                social: {},
-                merchandise: [],
-                upcomingEvents: [],
-                artGallery: []
-            };
+            return null;
         }
     }
-
+    
     // Get current user information
     async function getCurrentUser() {
         try {
             const response = await fetch('/api/auth/current-user', {
-                credentials: 'include' // Include cookies for authentication
+                credentials: 'include'
             });
             if (response.ok) {
                 return await response.json();
@@ -53,7 +149,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return null;
         }
     }
-
+    
     // Check if current user is the owner of this artist profile
     async function checkIfArtistOwner(userId, artistId) {
         if (!userId) return false;
@@ -68,8 +164,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             return false;
         }
     }
-
-    // Function to check user role 
+    
+    // Check if user has artist role
     async function userHasArtistRole(userId) {
         try {
             const response = await fetch(`/api/users/${userId}/roles`, {
@@ -81,58 +177,56 @@ document.addEventListener('DOMContentLoaded', async () => {
             return false;
         }
     }
-
+    
     // Initialize page based on user role and permissions
     function initializePageBasedOnRole(isOwner, hasArtistRole) {
         const editButtons = document.querySelectorAll('.add-item-btn');
         const formContainers = document.querySelectorAll('.add-form-container');
-        const cancelButtons = document.querySelectorAll('.cancel-btn');
         
         if (isOwner && hasArtistRole) {
-            // User is the artist owner - show all editing capabilities
             showEditingCapabilities(true);
             setupFormHandlers();
         } else {
-            // User is not the owner or not an artist - hide editing capabilities
             showEditingCapabilities(false);
-            showViewOnlyMessage();
+            if (currentUser) {
+                showViewOnlyMessage();
+            }
         }
     }
-
+    
     // Show or hide editing capabilities
     function showEditingCapabilities(canEdit) {
         const editButtons = document.querySelectorAll('.add-item-btn');
         const formContainers = document.querySelectorAll('.add-form-container');
         
         editButtons.forEach(button => {
-            if (canEdit) {
-                button.style.display = 'inline-block';
-            } else {
-                button.style.display = 'none';
-            }
+            button.style.display = canEdit ? 'inline-block' : 'none';
         });
         
         formContainers.forEach(container => {
             if (!canEdit) {
-                container.style.display = 'none';
+                container.classList.add('hidden');
             }
         });
     }
-
+    
     // Show message for view-only users
     function showViewOnlyMessage() {
+        // Remove existing banner
+        const existingBanner = document.querySelector('.view-only-banner');
+        if (existingBanner) {
+            existingBanner.remove();
+        }
+        
         if (!currentUser) {
-            // Not logged in
             addViewOnlyBanner("Sign in as an artist to manage your profile");
         } else if (!hasArtistRole) {
-            // Logged in but not an artist
             addViewOnlyBanner("Register as an artist to create your own profile");
-        } else {
-            // Is an artist but not the owner of this profile
+        } else if (!isArtistOwner) {
             addViewOnlyBanner("You can only edit your own artist profile");
         }
     }
-
+    
     // Add banner message for view-only users
     function addViewOnlyBanner(message) {
         const banner = document.createElement('div');
@@ -147,198 +241,132 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
         document.querySelector('main').insertBefore(banner, document.querySelector('.artist-nav'));
     }
-
-    // Setup form handlers (only for artist owners)
-    function setupFormHandlers() {
-        // Add Item Form Handlers
-        const addMerchandiseBtn = document.getElementById('addMerchandiseBtn');
-        const addEventBtn = document.getElementById('addEventBtn');
-        const addGalleryBtn = document.getElementById('addGalleryBtn');
-
-        const merchandiseFormContainer = document.getElementById('addMerchandiseFormContainer');
-        const eventFormContainer = document.getElementById('addEventFormContainer');
-        const galleryFormContainer = document.getElementById('addGalleryFormContainer');
-
-        // Show/Hide forms
-        if (addMerchandiseBtn) {
-            addMerchandiseBtn.addEventListener('click', () => {
-                merchandiseFormContainer.classList.toggle('hidden');
-            });
-        }
-
-        if (addEventBtn) {
-            addEventBtn.addEventListener('click', () => {
-                eventFormContainer.classList.toggle('hidden');
-            });
-        }
-
-        if (addGalleryBtn) {
-            addGalleryBtn.addEventListener('click', () => {
-                galleryFormContainer.classList.toggle('hidden');
-            });
-        }
-
-        // Cancel button handlers
-        document.querySelectorAll('.cancel-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.target.closest('.add-form-container').classList.add('hidden');
-            });
-        });
-
-        // Form submission handlers
-        setupFormSubmissions();
-    }
-
-    // Setup form submission handlers
-    function setupFormSubmissions() {
-        // Merchandise form
-        const merchandiseForm = document.getElementById('merchandiseForm');
-        if (merchandiseForm) {
-            merchandiseForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await handleMerchandiseSubmission(e.target);
-            });
-        }
-
-        // Event form
-        const eventForm = document.getElementById('eventForm');
-        if (eventForm) {
-            eventForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await handleEventSubmission(e.target);
-            });
-        }
-
-        // Gallery form
-        const galleryForm = document.getElementById('galleryForm');
-        if (galleryForm) {
-            galleryForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await handleGallerySubmission(e.target);
-            });
+    
+    // Show/hide loading spinner
+    function showLoadingSpinner(show) {
+        const spinner = document.getElementById('loadingSpinner');
+        if (spinner) {
+            spinner.style.display = show ? 'block' : 'none';
         }
     }
-
-    // Handle merchandise form submission
-    async function handleMerchandiseSubmission(form) {
-        const formData = new FormData(form);
-        const merchandiseData = {
-            name: formData.get('merchName') || document.getElementById('merchName').value,
-            description: formData.get('merchDescription') || document.getElementById('merchDescription').value,
-            price: parseFloat(formData.get('merchPrice') || document.getElementById('merchPrice').value),
-            image: formData.get('merchImage') || document.getElementById('merchImage').value
-        };
-
-        try {
-            const response = await fetch(`/api/artists/${artistId}/merchandise`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(merchandiseData)
-            });
-
-            if (response.ok) {
-                alert('Merchandise added successfully!');
-                form.reset();
-                document.getElementById('addMerchandiseFormContainer').classList.add('hidden');
-                location.reload(); // Refresh to show new item
-            } else {
-                alert('Error adding merchandise. Please try again.');
+    
+    // Show error message
+    function showErrorMessage(message) {
+        clearArtistProfile();
+        const artistName = document.getElementById('artistName');
+        const artistBio = document.getElementById('artistBio');
+        
+        if (artistName) artistName.textContent = 'Error';
+        if (artistBio) artistBio.textContent = message;
+    }
+    
+    // Clear artist profile data
+    function clearArtistProfile() {
+        // Clear hero section
+        const artistName = document.getElementById('artistName');
+        const artistBio = document.getElementById('artistBio');
+        const artistProfilePic = document.querySelector('.artist-profile-pic');
+        const socialLinks = document.querySelector('.social-links');
+        
+        if (artistName) artistName.textContent = 'Select an Artist';
+        if (artistBio) artistBio.textContent = 'Choose an artist from the dropdown above to view their profile, upcoming events, merchandise, and art gallery.';
+        if (artistProfilePic) artistProfilePic.src = 'https://via.placeholder.com/150';
+        if (socialLinks) socialLinks.innerHTML = '';
+        
+        // Clear sections
+        clearSection('.merchandise-grid', 'shopping-bag', 'Select an artist to view their merchandise');
+        clearSection('.events-list', 'calendar-alt', 'Select an artist to view their upcoming events');
+        clearSection('.gallery-grid', 'images', 'Select an artist to view their art gallery');
+        clearContactSection();
+        
+        // Hide edit buttons
+        showEditingCapabilities(false);
+        
+        // Remove view-only banner
+        const existingBanner = document.querySelector('.view-only-banner');
+        if (existingBanner) {
+            existingBanner.remove();
+        }
+    }
+    
+    // Clear a section with placeholder message
+    function clearSection(selector, icon, message) {
+        const container = document.querySelector(selector);
+        if (container) {
+            container.innerHTML = `
+                <div class="no-content-message">
+                    <i class="fas fa-${icon}"></i>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+    }
+    
+    // Clear contact section
+    function clearContactSection() {
+        const contactContent = document.getElementById('contactContent');
+        if (contactContent) {
+            contactContent.innerHTML = `
+                <div class="no-content-message">
+                    <i class="fas fa-envelope"></i>
+                    <p>Select an artist to send them a message</p>
+                </div>
+            `;
+        }
+    }
+    
+    // Populate artist data in the UI
+    async function populateArtistData(artistData) {
+        // Update hero section
+        const artistName = document.getElementById('artistName');
+        const artistBio = document.getElementById('artistBio');
+        const artistProfilePic = document.querySelector('.artist-profile-pic');
+        const socialLinks = document.querySelector('.social-links');
+        
+        if (artistName) artistName.textContent = artistData.name;
+        if (artistBio) artistBio.textContent = artistData.bio;
+        if (artistProfilePic) artistProfilePic.src = artistData.profilePic;
+        
+        // Update social links
+        if (socialLinks) {
+            socialLinks.innerHTML = '';
+            for (const platform in artistData.social) {
+                const link = document.createElement('a');
+                link.href = artistData.social[platform];
+                link.target = "_blank";
+                link.innerHTML = `<i class="fab fa-${platform}"></i>`;
+                socialLinks.appendChild(link);
             }
-        } catch (error) {
-            alert('Error adding merchandise. Please try again.');
         }
+        
+        // Update page title
+        document.title = `Artist Profile - ${artistData.name}`;
+        
+        // Populate sections
+        populateMerchandise(artistData.merchandise);
+        populateEvents(artistData.upcomingEvents);
+        populateGallery(artistData.artGallery);
+        populateContact(artistData.name);
     }
-
-    // Handle event form submission
-    async function handleEventSubmission(form) {
-        const formData = new FormData(form);
-        const eventData = {
-            title: formData.get('eventTitle') || document.getElementById('eventTitle').value,
-            date: formData.get('eventDate') || document.getElementById('eventDate').value,
-            location: formData.get('eventLocation') || document.getElementById('eventLocation').value,
-            time: formData.get('eventTime') || document.getElementById('eventTime').value,
-            ticketLink: formData.get('eventTicketLink') || document.getElementById('eventTicketLink').value
-        };
-
-        try {
-            const response = await fetch(`/api/artists/${artistId}/events`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(eventData)
-            });
-
-            if (response.ok) {
-                alert('Event added successfully!');
-                form.reset();
-                document.getElementById('addEventFormContainer').classList.add('hidden');
-                location.reload();
-            } else {
-                alert('Error adding event. Please try again.');
-            }
-        } catch (error) {
-            alert('Error adding event. Please try again.');
+    
+    // Populate merchandise section
+    function populateMerchandise(merchandise) {
+        const merchandiseGrid = document.querySelector('.merchandise-grid');
+        if (!merchandiseGrid) return;
+        
+        merchandiseGrid.innerHTML = '';
+        
+        if (merchandise.length === 0) {
+            merchandiseGrid.innerHTML = `
+                <div class="no-content-message">
+                    <i class="fas fa-shopping-bag"></i>
+                    <p>No merchandise available</p>
+                </div>
+            `;
+            return;
         }
-    }
-
-    // Handle gallery form submission
-    async function handleGallerySubmission(form) {
-        const formData = new FormData(form);
-        const galleryData = {
-            title: formData.get('artTitle') || document.getElementById('artTitle').value,
-            description: formData.get('artDescription') || document.getElementById('artDescription').value,
-            image: formData.get('artImage') || document.getElementById('artImage').value
-        };
-
-        try {
-            const response = await fetch(`/api/artists/${artistId}/gallery`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(galleryData)
-            });
-
-            if (response.ok) {
-                alert('Art piece added successfully!');
-                form.reset();
-                document.getElementById('addGalleryFormContainer').classList.add('hidden');
-                location.reload();
-            } else {
-                alert('Error adding art piece. Please try again.');
-            }
-        } catch (error) {
-            alert('Error adding art piece. Please try again.');
-        }
-    }
-
-    // Populate Artist Hero Section
-    const artistNameElement = document.getElementById('artistName');
-    const contactArtistNameElement = document.getElementById('contactArtistName');
-    if (contactArtistNameElement) contactArtistNameElement.textContent = artistData.name;
-    const artistBioElement = document.getElementById('artistBio');
-    const artistProfilePicElement = document.querySelector('.artist-profile-pic');
-    const socialLinksContainer = document.querySelector('.social-links');
-
-    if (artistNameElement) artistNameElement.textContent = artistData.name;
-    if (artistBioElement) artistBioElement.textContent = artistData.bio;
-    if (artistProfilePicElement) artistProfilePicElement.src = artistData.profilePic;
-
-    if (socialLinksContainer) {
-        socialLinksContainer.innerHTML = '';
-        for (const platform in artistData.social) {
-            const link = document.createElement('a');
-            link.href = artistData.social[platform];
-            link.target = "_blank";
-            link.innerHTML = `<i class="fab fa-${platform}"></i>`;
-            socialLinksContainer.appendChild(link);
-        }
-    }
-
-    // Populate Merchandise Section
-    const merchandiseGrid = document.querySelector('.merchandise-grid');
-    if (merchandiseGrid) {
-        artistData.merchandise.forEach(item => {
+        
+        merchandise.forEach(item => {
             const card = document.createElement('div');
             card.classList.add('merchandise-card');
             card.innerHTML = `
@@ -348,22 +376,38 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <p class="merchandise-description">${item.description}</p>
                     <p class="merchandise-price">$${item.price.toFixed(2)}</p>
                     <button class="buy-btn">Add to Cart</button>
-                    ${isArtistOwner ? '<button class="delete-btn" onclick="deleteMerchandise(\'' + item.id + '\')"><i class="fas fa-trash"></i></button>' : ''}
+                    ${isArtistOwner ? `<button class="delete-btn" onclick="deleteMerchandise('${item.id}')"><i class="fas fa-trash"></i></button>` : ''}
                 </div>
             `;
             merchandiseGrid.appendChild(card);
         });
     }
-
-    // Populate Upcoming Events Section
-    const eventsList = document.querySelector('.events-list');
-    if (eventsList) {
-        artistData.upcomingEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
-        artistData.upcomingEvents.forEach(event => {
+    
+    // Populate events section
+    function populateEvents(events) {
+        const eventsList = document.querySelector('.events-list');
+        if (!eventsList) return;
+        
+        eventsList.innerHTML = '';
+        
+        if (events.length === 0) {
+            eventsList.innerHTML = `
+                <div class="no-content-message">
+                    <i class="fas fa-calendar-alt"></i>
+                    <p>No upcoming events</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Sort events by date
+        events.sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        events.forEach(event => {
             const eventDate = new Date(event.date);
             const day = eventDate.getDate();
             const month = eventDate.toLocaleString('default', { month: 'short' });
-
+            
             const item = document.createElement('div');
             item.classList.add('event-item');
             item.innerHTML = `
@@ -378,17 +422,31 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
                 <div class="event-actions">
                     <a href="${event.ticketLink}" class="btn btn-primary" target="_blank">Tickets</a>
-                    ${isArtistOwner ? '<button class="delete-btn" onclick="deleteEvent(\'' + event.id + '\')"><i class="fas fa-trash"></i></button>' : ''}
+                    ${isArtistOwner ? `<button class="delete-btn" onclick="deleteEvent('${event.id}')"><i class="fas fa-trash"></i></button>` : ''}
                 </div>
             `;
             eventsList.appendChild(item);
         });
     }
-
-    // Populate Art Gallery Section
-    const galleryGrid = document.querySelector('.gallery-grid');
-    if (galleryGrid) {
-        artistData.artGallery.forEach(art => {
+    
+    // Populate gallery section
+    function populateGallery(artGallery) {
+        const galleryGrid = document.querySelector('.gallery-grid');
+        if (!galleryGrid) return;
+        
+        galleryGrid.innerHTML = '';
+        
+        if (artGallery.length === 0) {
+            galleryGrid.innerHTML = `
+                <div class="no-content-message">
+                    <i class="fas fa-images"></i>
+                    <p>No art pieces available</p>
+                </div>
+            `;
+            return;
+        }
+        
+        artGallery.forEach(art => {
             const item = document.createElement('div');
             item.classList.add('gallery-item');
             item.innerHTML = `
@@ -396,156 +454,453 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="gallery-item-overlay">
                     <h3>${art.title}</h3>
                     <p>${art.description}</p>
-                    ${isArtistOwner ? '<button class="delete-btn overlay-delete" onclick="deleteArtPiece(\'' + art.id + '\')"><i class="fas fa-trash"></i></button>' : ''}
+                    ${isArtistOwner ? `<button class="delete-btn overlay-delete" onclick="deleteArtPiece('${art.id}')"><i class="fas fa-trash"></i></button>` : ''}
                 </div>
             `;
             galleryGrid.appendChild(item);
         });
     }
-
-    // Smooth scrolling for navigation links
-    document.querySelectorAll('nav .nav-links a, .artist-nav-links a').forEach(anchor => {
-        anchor.addEventListener('click', function (e) {
-            e.preventDefault();
-            const targetId = this.getAttribute('href');
-
-            if (targetId.startsWith('#')) {
-                const targetElement = document.querySelector(targetId);
-                if (targetElement) {
-                    const headerOffset = document.querySelector('header').offsetHeight || 80;
-                    const artistNavOffset = document.querySelector('.artist-nav') ? document.querySelector('.artist-nav').offsetHeight : 0;
-                    const totalOffset = headerOffset + artistNavOffset + 20;
-
-                    const elementPosition = targetElement.getBoundingClientRect().top + window.pageYOffset;
-                    const offsetPosition = elementPosition - totalOffset;
-
-                    window.scrollTo({
-                        top: offsetPosition,
-                        behavior: 'smooth'
-                    });
+    
+    // Populate contact section
+    function populateContact(artistName) {
+        const contactContent = document.getElementById('contactContent');
+        if (!contactContent) return;
+        
+        contactContent.innerHTML = `
+            <p>Have a question or want to collaborate? Reach out to ${artistName}!</p>
+            <form class="contact-form">
+                <input type="text" name="name" placeholder="Your Name" required>
+                <input type="email" name="email" placeholder="Your Email" required>
+                <textarea name="message" placeholder="Your Message" rows="5" required></textarea>
+                <button type="submit" class="btn btn-primary">Send Message</button>
+            </form>
+        `;
+        
+        // Setup contact form handler
+        setupContactFormHandler();
+    }
+    
+    // Setup contact form handler
+    function setupContactFormHandler() {
+        const contactForm = document.querySelector('.contact-form');
+        if (contactForm) {
+            contactForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                if (!currentUser) {
+                    alert('Please sign in to send a message to the artist.');
+                    return;
                 }
+                
+                if (!currentArtistId) {
+                    alert('Please select an artist first.');
+                    return;
+                }
+                
+                const formData = new FormData(contactForm);
+                const contactData = {
+                    name: formData.get('name'),
+                    email: formData.get('email'),
+                    message: formData.get('message')
+                };
+                
+                try {
+                    const response = await fetch(`/api/artists/${currentArtistId}/contact`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify(contactData)
+                    });
+                    
+                    if (response.ok) {
+                        alert('Message sent successfully!');
+                        contactForm.reset();
+                    } else {
+                        alert('Error sending message. Please try again.');
+                    }
+                } catch (error) {
+                    alert('Error sending message. Please try again.');
+                }
+            });
+        }
+    }
+    
+    // Setup form handlers (only for artist owners)
+    function setupFormHandlers() {
+        const addMerchandiseBtn = document.getElementById('addMerchandiseBtn');
+        const addEventBtn = document.getElementById('addEventBtn');
+        const addGalleryBtn = document.getElementById('addGalleryBtn');
+        
+        const merchandiseFormContainer = document.getElementById('addMerchandiseFormContainer');
+        const eventFormContainer = document.getElementById('addEventFormContainer');
+        const galleryFormContainer = document.getElementById('addGalleryFormContainer');
+        
+        // Show/Hide forms
+        if (addMerchandiseBtn) {
+            addMerchandiseBtn.addEventListener('click', () => {
+                merchandiseFormContainer.classList.toggle('hidden');
+            });
+        }
+        
+        if (addEventBtn) {
+            addEventBtn.addEventListener('click', () => {
+                eventFormContainer.classList.toggle('hidden');
+            });
+        }
+        
+        if (addGalleryBtn) {
+            addGalleryBtn.addEventListener('click', () => {
+                galleryFormContainer.classList.toggle('hidden');
+            });
+        }
+        
+        // Cancel button handlers
+        document.querySelectorAll('.cancel-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.target.closest('.add-form-container').classList.add('hidden');
+            });
+        });
+        
+        // Form submission handlers
+        setupFormSubmissions();
+    }
+    
+    // Setup form submission handlers
+    function setupFormSubmissions() {
+        const merchandiseForm = document.getElementById('merchandiseForm');
+        if (merchandiseForm) {
+            merchandiseForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await handleMerchandiseSubmission(e.target);
+            });
+        }
+        
+        const eventForm = document.getElementById('eventForm');
+        if (eventForm) {
+            eventForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await handleEventSubmission(e.target);
+            });
+        }
+        
+        const galleryForm = document.getElementById('galleryForm');
+        if (galleryForm) {
+            galleryForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await handleGallerySubmission(e.target);
+            });
+        }
+    }
+    
+    // Handle merchandise form submission
+    async function handleMerchandiseSubmission(form) {
+        const merchandiseData = {
+            name: document.getElementById('merchName').value,
+            description: document.getElementById('merchDescription').value,
+            price: parseFloat(document.getElementById('merchPrice').value),
+            image: document.getElementById('merchImage').value
+        };
+        
+        try {
+            const response = await fetch(`/api/artists/${currentArtistId}/merchandise`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(merchandiseData)
+            });
+            
+            if (response.ok) {
+                alert('Merchandise added successfully!');
+                form.reset();
+                document.getElementById('addMerchandiseFormContainer').classList.add('hidden');
+                await loadArtistProfile(currentArtistId); // Refresh data
             } else {
-                window.location.href = targetId;
+                alert('Error adding merchandise. Please try again.');
+            }
+        } catch (error) {
+            alert('Error adding merchandise. Please try again.');
+        }
+    }
+    // Handle event form submission
+    async function handleEventSubmission(form) {
+        const eventData = {
+            title: document.getElementById('eventTitle').value,
+            date: document.getElementById('eventDate').value,
+            location: document.getElementById('eventLocation').value,
+            time: document.getElementById('eventTime').value,
+            ticketLink: document.getElementById('eventTicketLink').value
+        };
+        
+        try {
+            const response = await fetch(`/api/artists/${currentArtistId}/events`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(eventData)
+            });
+            
+            if (response.ok) {
+                alert('Event added successfully!');
+                form.reset();
+                document.getElementById('addEventFormContainer').classList.add('hidden');
+                await loadArtistProfile(currentArtistId); // Refresh data
+            } else {
+                alert('Error adding event. Please try again.');
+            }
+        } catch (error) {
+            alert('Error adding event. Please try again.');
+        }
+    }
+    
+    // Handle gallery form submission
+    async function handleGallerySubmission(form) {
+        const galleryData = {
+            title: document.getElementById('artTitle').value,
+            description: document.getElementById('artDescription').value,
+            image: document.getElementById('artImage').value
+        };
+        
+        try {
+            const response = await fetch(`/api/artists/${currentArtistId}/gallery`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(galleryData)
+            });
+            
+            if (response.ok) {
+                alert('Art piece added successfully!');
+                form.reset();
+                document.getElementById('addGalleryFormContainer').classList.add('hidden');
+                await loadArtistProfile(currentArtistId); // Refresh data
+            } else {
+                alert('Error adding art piece. Please try again.');
+            }
+        } catch (error) {
+            alert('Error adding art piece. Please try again.');
+        }
+    }
+    
+    // Delete merchandise item
+    window.deleteMerchandise = async function(itemId) {
+        if (!confirm('Are you sure you want to delete this merchandise item?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/artists/${currentArtistId}/merchandise/${itemId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                alert('Merchandise deleted successfully!');
+                await loadArtistProfile(currentArtistId); // Refresh data
+            } else {
+                alert('Error deleting merchandise. Please try again.');
+            }
+        } catch (error) {
+            alert('Error deleting merchandise. Please try again.');
+        }
+    };
+    
+    // Delete event
+    window.deleteEvent = async function(eventId) {
+        if (!confirm('Are you sure you want to delete this event?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/artists/${currentArtistId}/events/${eventId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                alert('Event deleted successfully!');
+                await loadArtistProfile(currentArtistId); // Refresh data
+            } else {
+                alert('Error deleting event. Please try again.');
+            }
+        } catch (error) {
+            alert('Error deleting event. Please try again.');
+        }
+    };
+    
+    // Delete art piece
+    window.deleteArtPiece = async function(artId) {
+        if (!confirm('Are you sure you want to delete this art piece?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/artists/${currentArtistId}/gallery/${artId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                alert('Art piece deleted successfully!');
+                await loadArtistProfile(currentArtistId); // Refresh data
+            } else {
+                alert('Error deleting art piece. Please try again.');
+            }
+        } catch (error) {
+            alert('Error deleting art piece. Please try again.');
+        }
+    };
+    
+    // Handle browser back/forward navigation
+    window.addEventListener('popstate', async (event) => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const artistId = urlParams.get('artistId');
+        
+        if (artistId) {
+            const artistSelect = document.getElementById('artistSelect');
+            artistSelect.value = artistId;
+            await loadArtistProfile(artistId);
+        } else {
+            const artistSelect = document.getElementById('artistSelect');
+            artistSelect.value = '';
+            clearArtistProfile();
+        }
+    });
+    
+    // Auto-save form data to prevent loss
+    function setupAutoSave() {
+        const forms = document.querySelectorAll('.item-form');
+        forms.forEach(form => {
+            const inputs = form.querySelectorAll('input, textarea');
+            inputs.forEach(input => {
+                input.addEventListener('input', () => {
+                    const formId = form.id;
+                    const inputId = input.id;
+                    const value = input.value;
+                    
+                    // Store in memory (not localStorage as per requirements)
+                    if (!window.formData) window.formData = {};
+                    if (!window.formData[formId]) window.formData[formId] = {};
+                    window.formData[formId][inputId] = value;
+                });
+            });
+        });
+    }
+    
+    // Restore form data
+    function restoreFormData() {
+        if (window.formData) {
+            Object.keys(window.formData).forEach(formId => {
+                const formData = window.formData[formId];
+                Object.keys(formData).forEach(inputId => {
+                    const input = document.getElementById(inputId);
+                    if (input) {
+                        input.value = formData[inputId];
+                    }
+                });
+            });
+        }
+    }
+    
+    // Clear form data after successful submission
+    function clearFormData(formId) {
+        if (window.formData && window.formData[formId]) {
+            delete window.formData[formId];
+        }
+    }
+    
+    // Initialize auto-save functionality
+    setupAutoSave();
+    
+    // Smooth scrolling for navigation links
+    document.querySelectorAll('.artist-nav-links a').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = link.getAttribute('href').substring(1);
+            const targetElement = document.getElementById(targetId);
+            
+            if (targetElement) {
+                targetElement.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
             }
         });
     });
-
-    // Highlight active link in artist-nav based on scroll position
-    const sections = document.querySelectorAll('.section[id]');
-    const artistNavLinks = document.querySelectorAll('.artist-nav-links a');
-
-    function highlightArtistNavLink() {
-        let currentActive = '';
-        sections.forEach(section => {
-            const sectionTop = section.offsetTop - (document.querySelector('header').offsetHeight + (document.querySelector('.artist-nav')?.offsetHeight || 0) + 30);
-            const sectionHeight = section.clientHeight;
-            if (pageYOffset >= sectionTop && pageYOffset < sectionTop + sectionHeight) {
-                currentActive = section.getAttribute('id');
+    
+    // Add loading states to buttons
+    function addLoadingState(button, originalText) {
+        button.disabled = true;
+        button.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${originalText}...`;
+    }
+    
+    function removeLoadingState(button, originalText) {
+        button.disabled = false;
+        button.innerHTML = originalText;
+    }
+    
+    // Enhanced form validation
+    function validateForm(form) {
+        const requiredFields = form.querySelectorAll('[required]');
+        let isValid = true;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                field.classList.add('error');
+                isValid = false;
+            } else {
+                field.classList.remove('error');
             }
         });
-
-        artistNavLinks.forEach(link => {
-            link.classList.remove('active');
-            if (link.getAttribute('href').includes(currentActive)) {
-                link.classList.add('active');
+        
+        // Validate URLs
+        const urlFields = form.querySelectorAll('input[type="url"]');
+        urlFields.forEach(field => {
+            if (field.value && !isValidURL(field.value)) {
+                field.classList.add('error');
+                isValid = false;
+            } else {
+                field.classList.remove('error');
             }
+        });
+        
+        return isValid;
+    }
+    
+    // URL validation helper
+    function isValidURL(string) {
+        try {
+            new URL(string);
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+    
+    // Image preload and validation
+    function preloadImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
         });
     }
-
-    window.addEventListener('scroll', highlightArtistNavLink);
-    highlightArtistNavLink();
-
-    // Contact form submission (available to all users)
-    const contactForm = document.getElementById('contactForm') || document.querySelector('.contact-form');
-    if (contactForm) {
-        contactForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            if (!currentUser) {
-                alert('Please sign in to send a message to the artist.');
-                return;
-            }
-
-            const formData = new FormData(contactForm);
-            try {
-                await fetch(`/api/artists/${artistId}/contact`, {
-                    method: 'POST',
-                    credentials: 'include',
-                    body: formData
-                });
-                alert('Message sent successfully!');
-                contactForm.reset();
-            } catch (error) {
-                alert('Error sending message. Please try again.');
+    
+    // Add image validation to forms
+    document.querySelectorAll('input[placeholder*="Image URL"]').forEach(input => {
+        input.addEventListener('blur', async () => {
+            const imageUrl = input.value.trim();
+            if (imageUrl) {
+                try {
+                    await preloadImage(imageUrl);
+                    input.classList.remove('error');
+                } catch (error) {
+                    input.classList.add('error');
+                    console.warn('Invalid image URL:', imageUrl);
+                }
             }
         });
-    }
+    });
 });
-
-// Global delete functions (only accessible to artist owners)
-async function deleteMerchandise(itemId) {
-    if (!confirm('Are you sure you want to delete this merchandise item?')) return;
-    
-    try {
-        const response = await fetch(`/api/artists/merchandise/${itemId}`, {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-        
-        if (response.ok) {
-            location.reload();
-        } else {
-            alert('Error deleting item. Please try again.');
-        }
-    } catch (error) {
-        alert('Error deleting item. Please try again.');
-    }
-}
-
-async function deleteEvent(eventId) {
-    if (!confirm('Are you sure you want to delete this event?')) return;
-    
-    try {
-        const response = await fetch(`/api/artists/events/${eventId}`, {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-        
-        if (response.ok) {
-            location.reload();
-        } else {
-            alert('Error deleting event. Please try again.');
-        }
-    } catch (error) {
-        alert('Error deleting event. Please try again.');
-    }
-}
-
-async function deleteArtPiece(artId) {
-    if (!confirm('Are you sure you want to delete this art piece?')) return;
-    
-    try {
-        const response = await fetch(`/api/artists/gallery/${artId}`, {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-        
-        if (response.ok) {
-            location.reload();
-        } else {
-            alert('Error deleting art piece. Please try again.');
-        }
-    } catch (error) {
-        alert('Error deleting art piece. Please try again.');
-    }
-}
-
-// Function to handle role switching
-function switchToArtistView(userId) {
-    if (userHasArtistRole(userId)) {
-        window.location.href = `artist.html?id=${userId}`;
-    } else {
-        alert('You need to set up your artist profile first');
-        window.location.href = 'artist-setup.html';
-    }
-}

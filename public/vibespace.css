@@ -529,4 +529,17 @@
         .fade-in {
             animation: fadeInUp 0.6s ease-out;
         }
-    
+    #eventSelect {
+    min-width: 200px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: white;
+    font-size: 14px;
+}
+
+#eventSelect option {
+    padding: 4px 8px;
+    background-color: white;
+    color: black;
+}

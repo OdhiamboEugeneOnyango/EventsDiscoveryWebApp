@@ -268,7 +268,8 @@
                 const response = await fetch(`/api/forums/${eventId}/join`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                       'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
                 });
 
@@ -328,7 +329,8 @@
                 const response = await fetch(`/api/posts/${postId}/like`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
                 });
 
@@ -390,10 +392,12 @@
             };
 
             try {
+                
                 const response = await fetch(`/api/forums/${eventId}/posts`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
                     },
                     body: JSON.stringify(formData)
                 });

@@ -910,3 +910,125 @@ footer {
         justify-content: center;
     }
 }
+
+/* Artist Selection Dropdown Styles */
+.artist-selector {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 2rem 0;
+    margin-top: 80px; /* Account for fixed header */
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+.artist-selector-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.selector-label {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #667eea;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.selector-label i {
+    font-size: 1.3rem;
+    color: #764ba2;
+}
+
+.artist-dropdown {
+    min-width: 250px;
+    padding: 0.8rem 1.2rem;
+    border: 2px solid #667eea;
+    border-radius: 25px;
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #333;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    outline: none;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
+}
+
+.artist-dropdown:hover {
+    border-color: #5a6fd8;
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.2);
+    transform: translateY(-2px);
+}
+
+.artist-dropdown:focus {
+    border-color: #764ba2;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.artist-dropdown option {
+    padding: 0.5rem;
+    font-size: 1rem;
+    color: #333;
+    background: white;
+}
+
+.artist-dropdown option:hover {
+    background: #f8f9fa;
+}
+
+.loading-spinner {
+    color: #667eea;
+    font-size: 1.2rem;
+    animation: spin 1s linear infinite;
+}
+
+.loading-spinner i {
+    font-size: 1.5rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments for artist selector */
+@media (max-width: 768px) {
+    .artist-selector {
+        padding: 1.5rem 0;
+    }
+    
+    .artist-selector-content {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .selector-label {
+        font-size: 1.1rem;
+        text-align: center;
+    }
+    
+    .artist-dropdown {
+        min-width: 200px;
+        width: 100%;
+        max-width: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .artist-selector {
+        padding: 1rem 0;
+    }
+    
+    .selector-label {
+        font-size: 1rem;
+    }
+    
+    .artist-dropdown {
+        font-size: 1rem;
+        padding: 0.7rem 1rem;
+    }
+}

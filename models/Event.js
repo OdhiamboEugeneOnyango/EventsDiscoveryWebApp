@@ -38,8 +38,8 @@ const eventSchema = new mongoose.Schema({
         required: true
     },
     price: {
-        type: String, // Can be "Free" or "KSH X"
-        default: 'Free'
+    type: Number, // Use a number instead of string
+    default: 0
     },
     tickets: {
         general: {

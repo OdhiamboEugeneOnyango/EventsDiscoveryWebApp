@@ -1,54 +1,521 @@
 const express = require('express');
-const router = express.Router();
-const Event = require('./models/Event');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const axios = require('axios');
+const crypto = require('crypto');
+const moment = require('moment');
+require('dotenv').config();
 
-// Get all events with proper error handling
-router.get('/api/events', async (req, res) => {
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.static('public'));
+
+// MongoDB connection
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/eventhub', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+});
+
+// Import models
+const Event = require('./models/Event');
+const User = require('./models/User');
+const Artist = require('./models/Artist');
+const Organizer = require('./models/Organizer');
+const Ticket = require('./models/Ticket');
+const Payment = require('./models/Payment');
+
+// M-Pesa Configuration
+const MPESA_CONFIG = {
+    consumer_key: process.env.MPESA_CONSUMER_KEY,
+    consumer_secret: process.env.MPESA_CONSUMER_SECRET,
+    business_short_code: process.env.MPESA_SHORTCODE,
+    passkey: process.env.MPESA_PASSKEY,
+    callback_url: process.env.MPESA_CALLBACK_URL || 'https://yourdomain.com/api/payments/mpesa/callback',
+    base_url: process.env.MPESA_ENV === 'production' 
+        ? 'https://api.safaricom.co.ke' 
+        : 'https://sandbox.safaricom.co.ke'
+};
+
+// M-Pesa access token cache
+let mpesaAccessToken = null;
+let tokenExpiryTime = null;
+
+// Helper function to get M-Pesa access token
+async function getMpesaAccessToken() {
     try {
-        const events = await Event.find({ status: 'active' }).sort({ date: 1 });
+        if (mpesaAccessToken && tokenExpiryTime && moment().isBefore(tokenExpiryTime)) {
+            return mpesaAccessToken;
+        }
+
+        const auth = Buffer.from(`${MPESA_CONFIG.consumer_key}:${MPESA_CONFIG.consumer_secret}`).toString('base64');
         
-        // Transform events to match frontend expectations
-        const transformedEvents = events.map(event => ({
-            _id: event._id.toString(), // Convert ObjectId to string
-            id: event._id.toString(),   // Convert ObjectId to string
-            title: event.title,
-            description: event.description,
-            category: event.category,
-            date: event.date,
-            time: event.time,
-            venue: event.venue,
-            location: event.location,
-            organizer: event.organizer,
-            price: event.price,
-            tickets: event.tickets,
-            icon: event.icon,
-            safetyRating: event.safetyRating,
-            attendees: event.attendees,
-            status: event.status
-        }));
-        
-        res.json({ 
-            success: true, 
-            events: transformedEvents,
-            count: transformedEvents.length 
+        const response = await axios.get(`${MPESA_CONFIG.base_url}/oauth/v1/generate?grant_type=client_credentials`, {
+            headers: {
+                'Authorization': `Basic ${auth}`
+            }
         });
+
+        mpesaAccessToken = response.data.access_token;
+        tokenExpiryTime = moment().add(response.data.expires_in, 'seconds');
+        
+        return mpesaAccessToken;
+    } catch (error) {
+        console.error('Error getting M-Pesa access token:', error);
+        throw error;
+    }
+}
+
+// Helper function to generate M-Pesa password
+function generateMpesaPassword(timestamp) {
+    const data = MPESA_CONFIG.business_short_code + MPESA_CONFIG.passkey + timestamp;
+    return Buffer.from(data).toString('base64');
+}
+
+// Routes
+
+// Get all events
+app.get('/api/events', async (req, res) => {
+    try {
+        const events = await Event.find({ status: 'active' })
+            .populate('organizer', 'name email')
+            .sort({ date: 1 });
+        res.json(events);
     } catch (error) {
         console.error('Error fetching events:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Get single event
+app.get('/api/events/:id', async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id)
+            .populate('organizer', 'name email bio')
+            .populate('artists', 'name genre');
+        
+        if (!event) {
+            return res.status(404).json({ message: 'Event not found' });
+        }
+        
+        res.json(event);
+    } catch (error) {
+        console.error('Error fetching event:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Create event
+app.post('/api/events', async (req, res) => {
+    try {
+        const eventData = req.body;
+        const event = new Event(eventData);
+        await event.save();
+        res.status(201).json(event);
+    } catch (error) {
+        console.error('Error creating event:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Update event
+app.put('/api/events/:id', async (req, res) => {
+    try {
+        const event = await Event.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true }
+        );
+        
+        if (!event) {
+            return res.status(404).json({ message: 'Event not found' });
+        }
+        
+        res.json(event);
+    } catch (error) {
+        console.error('Error updating event:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Delete event
+app.delete('/api/events/:id', async (req, res) => {
+    try {
+        const event = await Event.findByIdAndDelete(req.params.id);
+        
+        if (!event) {
+            return res.status(404).json({ message: 'Event not found' });
+        }
+        
+        res.json({ message: 'Event deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting event:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// User registration
+app.post('/api/users/register', async (req, res) => {
+    try {
+        const { name, email, password, phone } = req.body;
+        
+        // Check if user exists
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ message: 'User already exists' });
+        }
+        
+        const user = new User({ name, email, password, phone });
+        await user.save();
+        
+        // Remove password from response
+        const userResponse = user.toObject();
+        delete userResponse.password;
+        
+        res.status(201).json(userResponse);
+    } catch (error) {
+        console.error('Error registering user:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// User login
+app.post('/api/users/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        const user = await User.findOne({ email });
+        if (!user || !(await user.comparePassword(password))) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+        
+        // Remove password from response
+        const userResponse = user.toObject();
+        delete userResponse.password;
+        
+        res.json(userResponse);
+    } catch (error) {
+        console.error('Error logging in user:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Get user profile
+app.get('/api/users/:id', async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id).select('-password');
+        
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        res.json(user);
+    } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Update user profile
+app.put('/api/users/:id', async (req, res) => {
+    try {
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true }
+        ).select('-password');
+        
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        res.json(user);
+    } catch (error) {
+        console.error('Error updating user:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Get organizers
+app.get('/api/organizers', async (req, res) => {
+    try {
+        const organizers = await Organizer.find({ status: 'active' });
+        res.json(organizers);
+    } catch (error) {
+        console.error('Error fetching organizers:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Create organizer
+app.post('/api/organizers', async (req, res) => {
+    try {
+        const organizer = new Organizer(req.body);
+        await organizer.save();
+        res.status(201).json(organizer);
+    } catch (error) {
+        console.error('Error creating organizer:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Get artists
+app.get('/api/artists', async (req, res) => {
+    try {
+        const artists = await Artist.find({ status: 'active' });
+        res.json(artists);
+    } catch (error) {
+        console.error('Error fetching artists:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Create artist
+app.post('/api/artists', async (req, res) => {
+    try {
+        const artist = new Artist(req.body);
+        await artist.save();
+        res.status(201).json(artist);
+    } catch (error) {
+        console.error('Error creating artist:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Get tickets for user
+app.get('/api/tickets/user/:userId', async (req, res) => {
+    try {
+        const tickets = await Ticket.find({ user: req.params.userId })
+            .populate('event', 'title date time venue')
+            .sort({ createdAt: -1 });
+        res.json(tickets);
+    } catch (error) {
+        console.error('Error fetching tickets:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Get tickets for event
+app.get('/api/tickets/event/:eventId', async (req, res) => {
+    try {
+        const tickets = await Ticket.find({ event: req.params.eventId })
+            .populate('user', 'name email')
+            .sort({ createdAt: -1 });
+        res.json(tickets);
+    } catch (error) {
+        console.error('Error fetching tickets:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Create ticket
+app.post('/api/tickets', async (req, res) => {
+    try {
+        const ticket = new Ticket(req.body);
+        await ticket.save();
+        res.status(201).json(ticket);
+    } catch (error) {
+        console.error('Error creating ticket:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// M-Pesa STK Push
+app.post('/api/payments/mpesa', async (req, res) => {
+    try {
+        const { phoneNumber, amount, eventId, quantity } = req.body;
+        
+        // Validate input
+        if (!phoneNumber || !amount || !eventId || !quantity) {
+            return res.status(400).json({ message: 'Missing required fields' });
+        }
+
+        // Format phone number (remove leading zero and add 254)
+        const formattedPhone = phoneNumber.startsWith('0') 
+            ? '254' + phoneNumber.slice(1) 
+            : phoneNumber;
+
+        // Get access token
+        const accessToken = await getMpesaAccessToken();
+        
+        // Generate timestamp and password
+        const timestamp = moment().format('YYYYMMDDHHmmss');
+        const password = generateMpesaPassword(timestamp);
+        
+        // Create payment record
+        const payment = new Payment({
+            event: eventId,
+            amount,
+            phoneNumber: formattedPhone,
+            paymentMethod: 'mpesa',
+            status: 'pending',
+            quantity
+        });
+        await payment.save();
+
+        // STK Push request
+        const stkPushData = {
+            BusinessShortCode: MPESA_CONFIG.business_short_code,
+            Password: password,
+            Timestamp: timestamp,
+            TransactionType: 'CustomerPayBillOnline',
+            Amount: amount,
+            PartyA: formattedPhone,
+            PartyB: MPESA_CONFIG.business_short_code,
+            PhoneNumber: formattedPhone,
+            CallBackURL: MPESA_CONFIG.callback_url,
+            AccountReference: `TICKET-${payment._id}`,
+            TransactionDesc: `Event ticket purchase`
+        };
+
+        const response = await axios.post(
+            `${MPESA_CONFIG.base_url}/mpesa/stkpush/v1/processrequest`,
+            stkPushData,
+            {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        // Update payment with checkout request ID
+        payment.checkoutRequestId = response.data.CheckoutRequestID;
+        await payment.save();
+
+        res.json({
+            message: 'STK Push sent successfully',
+            checkoutRequestId: response.data.CheckoutRequestID,
+            paymentId: payment._id
+        });
+
+    } catch (error) {
+        console.error('M-Pesa payment error:', error);
         res.status(500).json({ 
-            success: false, 
-            message: 'Failed to fetch events',
-            error: error.message 
+            message: 'Payment initiation failed',
+            error: error.response?.data || error.message 
         });
     }
 });
 
-// Search events
-router.get('/api/events/search', async (req, res) => {
+// M-Pesa callback
+app.post('/api/payments/mpesa/callback', async (req, res) => {
     try {
-        const { q, category, location, date, price } = req.query;
+        const { Body } = req.body;
+        const { stkCallback } = Body;
+        
+        const checkoutRequestId = stkCallback.CheckoutRequestID;
+        const resultCode = stkCallback.ResultCode;
+        
+        // Find payment record
+        const payment = await Payment.findOne({ checkoutRequestId });
+        
+        if (!payment) {
+            console.error('Payment not found for checkout request ID:', checkoutRequestId);
+            return res.status(404).json({ message: 'Payment not found' });
+        }
+
+        if (resultCode === 0) {
+            // Payment successful
+            const callbackMetadata = stkCallback.CallbackMetadata;
+            const items = callbackMetadata.Item;
+            
+            let mpesaReceiptNumber = '';
+            let transactionDate = '';
+            
+            items.forEach(item => {
+                if (item.Name === 'MpesaReceiptNumber') {
+                    mpesaReceiptNumber = item.Value;
+                }
+                if (item.Name === 'TransactionDate') {
+                    transactionDate = item.Value;
+                }
+            });
+
+            // Update payment status
+            payment.status = 'completed';
+            payment.mpesaReceiptNumber = mpesaReceiptNumber;
+            payment.transactionDate = transactionDate;
+            await payment.save();
+
+            // Create ticket
+            const ticket = new Ticket({
+                user: payment.user,
+                event: payment.event,
+                payment: payment._id,
+                quantity: payment.quantity,
+                totalAmount: payment.amount,
+                status: 'active'
+            });
+            await ticket.save();
+
+            // Update event attendees count
+            await Event.findByIdAndUpdate(
+                payment.event,
+                { $inc: { attendees: payment.quantity } }
+            );
+
+            console.log('Payment completed successfully:', mpesaReceiptNumber);
+        } else {
+            // Payment failed
+            payment.status = 'failed';
+            payment.failureReason = stkCallback.ResultDesc;
+            await payment.save();
+            
+            console.log('Payment failed:', stkCallback.ResultDesc);
+        }
+
+        res.json({ message: 'Callback processed successfully' });
+    } catch (error) {
+        console.error('M-Pesa callback error:', error);
+        res.status(500).json({ message: 'Callback processing failed' });
+    }
+});
+
+// Check payment status
+app.get('/api/payments/:paymentId/status', async (req, res) => {
+    try {
+        const payment = await Payment.findById(req.params.paymentId);
+        
+        if (!payment) {
+            return res.status(404).json({ message: 'Payment not found' });
+        }
+        
+        res.json({
+            status: payment.status,
+            mpesaReceiptNumber: payment.mpesaReceiptNumber,
+            transactionDate: payment.transactionDate
+        });
+    } catch (error) {
+        console.error('Error checking payment status:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Get all payments
+app.get('/api/payments', async (req, res) => {
+    try {
+        const payments = await Payment.find()
+            .populate('event', 'title date')
+            .populate('user', 'name email')
+            .sort({ createdAt: -1 });
+        res.json(payments);
+    } catch (error) {
+        console.error('Error fetching payments:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Search events
+app.get('/api/search/events', async (req, res) => {
+    try {
+        const { q, category, location, date, minPrice, maxPrice } = req.query;
+        
         let query = { status: 'active' };
         
-        // Build search query
         if (q) {
             query.$or = [
                 { title: { $regex: q, $options: 'i' } },
@@ -57,161 +524,93 @@ router.get('/api/events/search', async (req, res) => {
             ];
         }
         
-        if (category) query.category = category;
-        if (location) query.location = location;
-        if (date) query.date = date;
+        if (category) {
+            query.category = category;
+        }
         
-        const events = await Event.find(query).sort({ date: 1 });
+        if (location) {
+            query.location = { $regex: location, $options: 'i' };
+        }
         
-        res.json({ 
-            success: true, 
-            events,
-            count: events.length 
-        });
+        if (date) {
+            query.date = date;
+        }
+        
+        if (minPrice || maxPrice) {
+            query.price = {};
+            if (minPrice) query.price.$gte = parseInt(minPrice);
+            if (maxPrice) query.price.$lte = parseInt(maxPrice);
+        }
+        
+        const events = await Event.find(query)
+            .populate('organizer', 'name')
+            .sort({ date: 1 });
+        
+        res.json(events);
     } catch (error) {
         console.error('Error searching events:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to search events',
-            error: error.message 
-        });
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
-// Get single event by ID
-router.get('/api/events/:id', async (req, res) => {
+// Get event statistics
+app.get('/api/stats/events', async (req, res) => {
     try {
-        const event = await Event.findById(req.params.id);
-        if (!event) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Event not found' 
-            });
-        }
+        const totalEvents = await Event.countDocuments({ status: 'active' });
+        const totalTicketsSold = await Ticket.countDocuments({ status: 'active' });
+        const totalRevenue = await Payment.aggregate([
+            { $match: { status: 'completed' } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
         
-        // Transform single event
-        const transformedEvent = {
-            _id: event._id.toString(), // Convert ObjectId to string
-    id: event._id.toString(),   // Convert ObjectId to string
-            title: event.title,
-            description: event.description,
-            category: event.category,
-            date: event.date,
-            time: event.time,
-            venue: event.venue,
-            location: event.location,
-            organizer: event.organizer,
-            price: event.price,
-            tickets: event.tickets,
-            icon: event.icon,
-            safetyRating: event.safetyRating,
-            attendees: event.attendees,
-            status: event.status
-        };
+        const eventsByCategory = await Event.aggregate([
+            { $match: { status: 'active' } },
+            { $group: { _id: '$category', count: { $sum: 1 } } }
+        ]);
         
-        res.json({ success: true, event: transformedEvent });
-    } catch (error) {
-        console.error('Error fetching event:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to fetch event',
-            error: error.message 
-        });
-    }
-});
-
-// Create event with validation
-router.post('/api/events', async (req, res) => {
-    try {
-        // Validate required fields
-        const requiredFields = ['title', 'description', 'category', 'date', 'time', 'venue', 'location', 'organizer'];
-        const missingFields = requiredFields.filter(field => !req.body[field]);
-        
-        if (missingFields.length > 0) {
-            return res.status(400).json({
-                success: false,
-                message: `Missing required fields: ${missingFields.join(', ')}`
-            });
-        }
-        
-        const event = new Event(req.body);
-        await event.save();
-        
-        res.status(201).json({ 
-            success: true, 
-            event,
-            message: 'Event created successfully' 
+        res.json({
+            totalEvents,
+            totalTicketsSold,
+            totalRevenue: totalRevenue[0]?.total || 0,
+            eventsByCategory
         });
     } catch (error) {
-        console.error('Error creating event:', error);
-        res.status(400).json({ 
-            success: false, 
-            message: 'Failed to create event',
-            error: error.message 
-        });
+        console.error('Error fetching stats:', error);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
-// Update event
-router.put('/api/events/:id', async (req, res) => {
-    try {
-        const event = await Event.findByIdAndUpdate(
-            req.params.id, 
-            req.body, 
-            { new: true, runValidators: true }
-        );
-        
-        if (!event) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Event not found' 
-            });
-        }
-        
-        res.json({ 
-            success: true, 
-            event,
-            message: 'Event updated successfully' 
-        });
-    } catch (error) {
-        console.error('Error updating event:', error);
-        res.status(400).json({ 
-            success: false, 
-            message: 'Failed to update event',
-            error: error.message 
-        });
-    }
+// Health check
+app.get('/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Delete event (soft delete by changing status)
-router.delete('/api/events/:id', async (req, res) => {
-    try {
-        const event = await Event.findByIdAndUpdate(
-            req.params.id,
-            { status: 'cancelled' },
-            { new: true }
-        );
-        
-        if (!event) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Event not found' 
-            });
-        }
-        
-        res.json({ 
-            success: true, 
-            message: 'Event cancelled successfully',
-            event 
-        });
-    } catch (error) {
-        console.error('Error deleting event:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to delete event',
-            error: error.message 
-        });
-    }
+// 404 handler
+app.use('*', (req, res) => {
+    res.status(404).json({ message: 'Route not found' });
 });
 
-module.exports = router;
+// Error handler
+app.use((err, req, res, next) => {
+    console.error('Unhandled error:', err);
+    res.status(500).json({ message: 'Internal server error' });
+});
+
+// Start server
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully');
+    process.exit(0);
+});
+
+process.on('SIGINT', () => {
+    console.log('SIGINT received, shutting down gracefully');
+    process.exit(0);
+});
+
+module.exports = app;

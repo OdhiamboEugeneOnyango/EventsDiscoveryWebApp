@@ -27,17 +27,31 @@
     </header>
 
     <main>
+        <!-- Artist Selection Dropdown -->
+        <section class="artist-selector">
+            <div class="container">
+                <div class="artist-selector-content">
+                    <label for="artistSelect" class="selector-label">
+                        <i class="fas fa-palette"></i> Explore Artist:
+                    </label>
+                    <select id="artistSelect" class="artist-dropdown">
+                        <option value="">Select an artist...</option>
+                    </select>
+                    <div class="loading-spinner" id="loadingSpinner" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <section class="hero artist-hero">
             <div class="hero-bg-overlay"></div>
             <div class="container">
                 <img src="https://via.placeholder.com/150" alt="Artist Profile Picture" class="artist-profile-pic">
-                <h1 id="artistName">Artist Name</h1>
-                <p id="artistBio">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+                <h1 id="artistName">Select an Artist</h1>
+                <p id="artistBio">Choose an artist from the dropdown above to view their profile, upcoming events, merchandise, and art gallery.</p>
                 <div class="social-links">
-                    <a href="#" target="_blank"><i class="fab fa-facebook-f"></i></a>
-                    <a href="#" target="_blank"><i class="fab fa-instagram"></i></a>
-                    <a href="#" target="_blank"><i class="fab fa-twitter"></i></a>
-                    <a href="#" target="_blank"><i class="fab fa-youtube"></i></a>
+                    <!-- Social links will be populated dynamically -->
                 </div>
             </div>
         </section>
@@ -56,7 +70,9 @@
 
         <section id="merchandise" class="section merchandise-section container">
             <h2 class="section-title">Merchandise</h2>
-            <button id="addMerchandiseBtn" class="btn btn-primary add-item-btn"><i class="fas fa-plus"></i> Add New Merchandise</button>
+            <button id="addMerchandiseBtn" class="btn btn-primary add-item-btn" style="display: none;">
+                <i class="fas fa-plus"></i> Add New Merchandise
+            </button>
             
             <div id="addMerchandiseFormContainer" class="add-form-container hidden">
                 <h3>Add New Merchandise Item</h3>
@@ -71,12 +87,18 @@
             </div>
 
             <div class="merchandise-grid">
+                <div class="no-content-message">
+                    <i class="fas fa-shopping-bag"></i>
+                    <p>Select an artist to view their merchandise</p>
                 </div>
+            </div>
         </section>
 
         <section id="events" class="section events-section container">
             <h2 class="section-title">Upcoming Events</h2>
-            <button id="addEventBtn" class="btn btn-primary add-item-btn"><i class="fas fa-plus"></i> Add New Event</button>
+            <button id="addEventBtn" class="btn btn-primary add-item-btn" style="display: none;">
+                <i class="fas fa-plus"></i> Add New Event
+            </button>
 
             <div id="addEventFormContainer" class="add-form-container hidden">
                 <h3>Add New Upcoming Event</h3>
@@ -92,12 +114,18 @@
             </div>
 
             <div class="events-list">
+                <div class="no-content-message">
+                    <i class="fas fa-calendar-alt"></i>
+                    <p>Select an artist to view their upcoming events</p>
                 </div>
+            </div>
         </section>
 
         <section id="gallery" class="section gallery-section container">
             <h2 class="section-title">Art Gallery</h2>
-            <button id="addGalleryBtn" class="btn btn-primary add-item-btn"><i class="fas fa-plus"></i> Add New Art Piece</button>
+            <button id="addGalleryBtn" class="btn btn-primary add-item-btn" style="display: none;">
+                <i class="fas fa-plus"></i> Add New Art Piece
+            </button>
             
             <div id="addGalleryFormContainer" class="add-form-container hidden">
                 <h3>Add New Art Gallery Item</h3>
@@ -111,18 +139,21 @@
             </div>
 
             <div class="gallery-grid">
+                <div class="no-content-message">
+                    <i class="fas fa-images"></i>
+                    <p>Select an artist to view their art gallery</p>
                 </div>
+            </div>
         </section>
 
         <section id="contact" class="section contact-section container">
             <h2 class="section-title">Get in Touch</h2>
-            <p>Have a question or want to collaborate? Reach out to <span id="contactArtistName">Artist Name</span>!</p>
-            <form class="contact-form">
-                <input type="text" placeholder="Your Name" required>
-                <input type="email" placeholder="Your Email" required>
-                <textarea placeholder="Your Message" rows="5" required></textarea>
-                <button type="submit" class="btn btn-primary">Send Message</button>
-            </form>
+            <div id="contactContent">
+                <div class="no-content-message">
+                    <i class="fas fa-envelope"></i>
+                    <p>Select an artist to send them a message</p>
+                </div>
+            </div>
         </section>
     </main>
 
