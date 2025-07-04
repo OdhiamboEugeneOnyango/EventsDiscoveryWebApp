@@ -1,211 +1,224 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Event Management Dashboard</title>
-  <link rel="stylesheet" href="organizer.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organizer Dashboard - Campus Events</title>
+    <link rel="stylesheet" href="organizer.css">
 </head>
 <body>
-  <!-- Header -->
-  <header>
-    <nav>
-      <div class="logo">EventHub</div>
-      <ul class="nav-links">
-        <li><a href="#" class="active">Dashboard</a></li>
-        <li><a href="index.html">Home</a></li>
-        <li><a href="events.html">Events</a></li>
-        <li><a href="signUp.html">Sign Up</a></li>
-        <li><a href="profile.html">Settings</a></li>
-      </ul>
-      <div class="user-menu">
-        <span></span>
-        <div class="user-avatar"></div>
-      </div>
-    </nav>
-  </header>
-
-  <!-- Main Content -->
-  <div class="main-content">
-    <div class="container">
-      <!-- Dashboard Header -->
-      <div class="dashboard-header">
-        <div class="dashboard-title">
-          <h1>Event Management Dashboard</h1>
-          <button class="btn btn-primary" onclick="openModal('createEventModal')">➕ Create New Event</button>
-        </div>
-        <p>Manage your events, track performance, and engage with attendees</p>
-      </div>
-
-      <!-- Stats Cards -->
-      <div class="stats-grid" id="statsGrid">
-        <!-- You can dynamically populate these using JS if needed -->
-      </div>
-
-      <!-- Tab Navigation -->
-      <div class="tab-navigation">
-        <div class="tab-buttons">
-          <button class="tab-btn active" onclick="switchTab('events', event)">My Events</button>
-          <button class="tab-btn" onclick="switchTab('analytics', event)">Analytics</button>
-          <button class="tab-btn" onclick="switchTab('applications', event)">Applications</button>
-          <button class="tab-btn" onclick="switchTab('venues', event)">Venue Requests</button>
-        </div>
-      </div>
-
-      <!-- Events Tab -->
-      <div id="events" class="tab-content active">
-        <div class="events-section">
-          <div class="section-header">
-            <h2>My Events</h2>
-            <div>
-              <select>
-                <option>All Events</option>
-                <option>Active</option>
-                <option>Draft</option>
-                <option>Ended</option>
-              </select>
+    <!-- Header -->
+    <header>
+        <nav>
+            <div class="logo">Campus Events</div>
+            <ul class="nav-links">
+                <li><a href="/dashboard">Dashboard</a></li>
+                <li><a href="/events">Events</a></li>
+                <li><a href="/applications">Applications</a></li>
+                <li><a href="/profile">Profile</a></li>
+            </ul>
+            <div class="user-info">
+                <span id="userName" class="user-name">Loading...</span>
+                <button class="btn btn-danger" onclick="logout()">Logout</button>
             </div>
-          </div>
-          <div class="events-grid" id="eventsGrid"></div>
-        </div>
-      </div>
+        </nav>
+    </header>
 
-      <!-- Analytics Tab -->
-      <div id="analytics" class="tab-content">
-        <div class="events-section">
-          <div class="section-header"><h2>Analytics & Insights</h2></div>
-          <div class="analytics-grid">
-            <div class="chart-container"><h3>Ticket Sales Over Time</h3><div class="chart-placeholder"></div></div>
-            <div class="chart-container"><h3>Attendance by Event</h3><div class="chart-placeholder"></div></div>
-            <div class="chart-container"><h3>Revenue Breakdown</h3><div class="chart-placeholder"></div></div>
-            <div class="chart-container"><h3>User Demographics</h3><div class="chart-placeholder"></div></div>
-          </div>
-        </div>
-      </div>
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <!-- Alert Container -->
+            <div id="alertContainer"></div>
 
-      <!-- Applications Tab -->
-      <div id="applications" class="tab-content">
-        <div class="events-section">
-          <div class="section-header"><h2>Event Applications</h2></div>
-          <div class="applications-table">
-            <div class="table-header">
-              <div>Applicant</div>
-              <div>Event</div>
-              <div>Date Applied</div>
-              <div>Status</div>
-              <div>Actions</div>
+            <!-- Dashboard Header -->
+            <div class="dashboard-header">
+                <h1>Organizer Dashboard</h1>
+                <p>Manage your events and track performance</p>
             </div>
-            <!-- Dynamic rows to be injected via JS -->
-          </div>
-        </div>
-      </div>
 
-      <!-- Venues Tab -->
-      <div id="venues" class="tab-content">
-        <div class="events-section">
-          <div class="section-header"><h2>Venue Booking Requests</h2></div>
-          <div class="venue-requests" id="venueRequests">
-            <!-- Dynamic requests will be rendered here -->
-          </div>
-        </div>
-      </div>
+            <!-- Statistics Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalEvents">0</div>
+                    <div class="stat-label">Total Events</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="activeEvents">0</div>
+                    <div class="stat-label">Active Events</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalAttendees">0</div>
+                    <div class="stat-label">Total Attendees</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalRevenue">KSh 0</div>
+                    <div class="stat-label">Total Revenue</div>
+                </div>
+            </div>
 
-      <!-- Create Event Modal -->
-      <div id="createEventModal" class="modal">
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="openEventModal()">Create New Event</button>
+                <button class="btn btn-secondary" onclick="exportEvents()">Export Events</button>
+                <button class="btn btn-secondary" onclick="viewAnalytics()">View Analytics</button>
+            </div>
+
+            <!-- Event Management Section -->
+            <div class="event-management">
+                <div class="section-header">
+                    <div>
+                        <h2 class="section-title">Event Management</h2>
+                        <p>Manage all your events from one place</p>
+                    </div>
+                </div>
+
+                <!-- Filter Bar -->
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <label for="statusFilter">Status:</label>
+                        <select id="statusFilter" onchange="filterEvents()">
+                            <option value="">All Statuses</option>
+                            <option value="active">Active</option>
+                            <option value="pending">Pending</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="categoryFilter">Category:</label>
+                        <select id="categoryFilter" onchange="filterEvents()">
+                            <option value="">All Categories</option>
+                            <option value="conference">Conference</option>
+                            <option value="workshop">Workshop</option>
+                            <option value="seminar">Seminar</option>
+                            <option value="networking">Networking</option>
+                            <option value="social">Social</option>
+                            <option value="sports">Sports</option>
+                            <option value="cultural">Cultural</option>
+                            <option value="educational">Educational</option>
+                            <option value="entertainment">Entertainment</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="dateFilter">Date:</label>
+                        <input type="date" id="dateFilter" onchange="filterEvents()">
+                    </div>
+                    <div class="filter-group">
+                        <label for="searchFilter">Search:</label>
+                        <input type="text" id="searchFilter" placeholder="Search events..." oninput="filterEvents()">
+                    </div>
+                </div>
+
+                <!-- Events Table -->
+                <div class="events-table-container">
+                    <table class="events-table">
+                        <thead>
+                            <tr>
+                                <th>Event Name</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Location</th>
+                                <th>Category</th>
+                                <th>Status</th>
+                                <th>Attendees</th>
+                                <th>Price</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="eventsTableBody">
+                            <tr>
+                                <td colspan="9" style="text-align: center; color: #666;">Loading events...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Event Modal -->
+    <div id="eventModal" class="modal">
         <div class="modal-content">
-          <div class="modal-header"><h2>Create New Event</h2><button class="close-modal" onclick="closeModal('createEventModal')">&times;</button></div>
-          <div class="modal-body">
-            <form id="createEventForm">
-              <div class="form-grid">
-                <div class="form-group"><label for="eventTitle">Event Title *</label><input type="text" id="eventTitle" required /></div>
-                <div class="form-group">
-                  <label for="eventCategory">Category *</label>
-                  <select id="eventCategory" required>
-                    <option value="">Select Category</option>
-                    <option value="conference">Conference</option>
-                    <option value="workshop">Workshop</option>
-                    <option value="networking">Networking</option>
-                    <option value="seminar">Seminar</option>
-                    <option value="exhibition">Exhibition</option>
-                    <option value="entertainment">Entertainment</option>
-                  </select>
+            <div class="modal-header">
+                <h2 id="modalTitle" class="modal-title">Create New Event</h2>
+                <button class="close-btn" onclick="closeEventModal()">&times;</button>
+            </div>
+            <form id="eventForm" enctype="multipart/form-data">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="eventName">Event Name *</label>
+                        <input type="text" id="eventName" name="name" required placeholder="Enter event name">
+                    </div>
+                    <div class="form-group">
+                        <label for="eventCategory">Category *</label>
+                        <select id="eventCategory" name="category" required>
+                            <option value="">Select Category</option>
+                            <option value="conference">Conference</option>
+                            <option value="workshop">Workshop</option>
+                            <option value="seminar">Seminar</option>
+                            <option value="networking">Networking</option>
+                            <option value="social">Social</option>
+                            <option value="sports">Sports</option>
+                            <option value="cultural">Cultural</option>
+                            <option value="educational">Educational</option>
+                            <option value="entertainment">Entertainment</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventDate">Date *</label>
+                        <input type="date" id="eventDate" name="date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventTime">Time *</label>
+                        <input type="time" id="eventTime" name="time" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventLocation">Location *</label>
+                        <input type="text" id="eventLocation" name="location" required placeholder="Enter event location">
+                    </div>
+                    <div class="form-group">
+                        <label for="eventPrice">Price (KSh)</label>
+                        <input type="number" id="eventPrice" name="price" min="0" step="0.01" placeholder="Leave empty for free event">
+                    </div>
+                    <div class="form-group">
+                        <label for="eventCapacity">Capacity</label>
+                        <input type="number" id="eventCapacity" name="capacity" min="1" placeholder="Leave empty for unlimited">
+                    </div>
+                    <div class="form-group">
+                        <label for="eventStatus">Status</label>
+                        <select id="eventStatus" name="status">
+                            <option value="active">Active</option>
+                            <option value="pending">Pending</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventImage">Event Image</label>
+                        <input type="file" id="eventImage" name="image" accept="image/jpeg,image/png,image/gif">
+                        <small style="color: #666; font-size: 0.8rem; margin-top: 0.25rem;">
+                            Supported formats: JPEG, PNG, GIF (Max 5MB)
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventTags">Tags (comma-separated)</label>
+                        <input type="text" id="eventTags" name="tags" placeholder="e.g., technology, networking, professional">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="eventDescription">Description</label>
+                        <textarea id="eventDescription" name="description" placeholder="Describe your event in detail..." rows="4"></textarea>
+                    </div>
                 </div>
-              </div>
-              <div class="form-group"><label for="eventDescription">Description *</label><textarea id="eventDescription" required></textarea></div>
-              <div class="form-grid">
-                <div class="form-group"><label for="eventDate">Date *</label><input type="date" id="eventDate" required /></div>
-                <div class="form-group"><label for="eventTime">Time *</label><input type="time" id="eventTime" required /></div>
-                <div class="form-group"><label for="eventDuration">Duration (hrs)</label><input type="number" id="eventDuration" min="1" max="24" value="2" /></div>
-                <div class="form-group"><label for="eventCapacity">Capacity *</label><input type="number" id="eventCapacity" required min="1" /></div>
-              </div>
-              <div class="form-grid">
-                <div class="form-group"><label for="eventLocation">Location *</label><input type="text" id="eventLocation" required /></div>
-                <div class="form-group"><label for="eventVenue">Venue *</label><input type="text" id="eventVenue" required /></div>
-                <div class="form-group"><label for="eventPrice">Ticket Price (KSH)</label><input type="number" id="eventPrice" min="0" step="0.01" /></div>
-              </div>
-              <div class="form-group">
-                <label>Event Images</label>
-                <div class="file-upload" onclick="document.getElementById('eventImages').click()">
-                  <div class="upload-icon">📷</div>
-                  <p>Click or Drag images</p>
-                  <small>JPG, PNG, GIF up to 5MB</small>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeEventModal()">Cancel</button>
+                    <button type="submit" id="submitBtn" class="btn btn-primary">Create Event</button>
                 </div>
-                <input type="file" id="eventImages" multiple accept="image/*" style="display: none;" />
-                <div class="image-preview" id="imagePreview"></div>
-              </div>
-              <div class="form-group">
-                <label><input type="checkbox" id="requireApproval" /> Require approval</label>
-              </div>
-              <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('createEventModal')">Cancel</button>
-                <button type="submit" class="btn btn-primary">Create Event</button>
-              </div>
             </form>
-          </div>
         </div>
-      </div>
-
-      <!-- Edit Event Modal -->
-      <div id="editEventModal" class="modal">
-        <div class="modal-content">
-          <div class="modal-header"><h2>Edit Event</h2><button class="close-modal" onclick="closeModal('editEventModal')">&times;</button></div>
-          <div class="modal-body">
-            <form id="editEventForm">
-              <input type="hidden" id="editEventId" />
-              <div class="form-grid">
-                <div class="form-group"><label for="editEventTitle">Event Title *</label><input type="text" id="editEventTitle" required /></div>
-                <div class="form-group">
-                  <label for="editEventCategory">Category *</label>
-                  <select id="editEventCategory" required>
-                    <option value="">Select Category</option>
-                    <option value="conference">Conference</option>
-                    <option value="workshop">Workshop</option>
-                    <option value="networking">Networking</option>
-                    <option value="seminar">Seminar</option>
-                    <option value="exhibition">Exhibition</option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-group"><label for="editEventDescription">Description *</label><textarea id="editEventDescription" required></textarea></div>
-              <div class="form-grid">
-                <div class="form-group"><label for="editEventDate">Date *</label><input type="date" id="editEventDate" required /></div>
-                <div class="form-group"><label for="editEventTime">Time *</label><input type="time" id="editEventTime" required /></div>
-                <div class="form-group"><label for="editLocation">Location *</label><input type="text" id="editEventLocation" required /></div>
-                <div class="form-group"><label for="editEventVenue">Venue *</label><input type="text" id="editEventVenue" required /></div>
-                <div class="form-group"><label for="editEventCapacity">Capacity *</label><input type="number" id="editEventCapacity" required /></div>
-              </div>
-              <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('editEventModal')">Cancel</button>
-                <button type="submit" class="btn btn-primary">Update Event</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
     </div>
-  </div>
 
-  <!-- Scripts -->
-  <script src="organizer.js"></script>
+    <script src="organizer.js"></script>
 </body>
 </html>

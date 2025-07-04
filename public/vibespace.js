@@ -301,7 +301,7 @@
         function openNewPostModal() {
             if (!currentUser) {
                 alert('Please login first to create posts!');
-                window.location.href = '/login';
+                window.location.href = 'login.html';
                 return;
             }
             
@@ -460,7 +460,7 @@
 
 async function loadEventOptions() {
     try {
-        const res = await fetch('/api/events/dropdown');
+        const res = await fetch('/api/events');
         const data = await res.json();
         if (data.success && Array.isArray(data.events)) {
             const select = document.getElementById('eventSelect');

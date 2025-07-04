@@ -1,45 +1,62 @@
 const express = require('express');
 const router = express.Router();
-
-// Middleware to parse JSON
-router.use(express.json());
-
 const Event = require('./models/Event');
 const Ticket = require('./models/Ticket');
 const Payment = require('./models/Payment');
+//const UserInterest = require('./models/UserInterest');
+//const UserGoing = require('./models/UserGoing');
+//const UserSaved = require('./models/UserSaved');
+//const EventReview = require('./models/EventReview');
 
-
-// GET /api/events - Retrieve all events (matches frontend expectation)
+// GET /api/events - Retrieve all events
 router.get('/api/events', async (req, res) => {
-    try {
-        const events = await db.collection('events')
-            .find({})
-            .sort({ date: 1 })
-            .toArray();
-        res.json({
-            success: true,
-            events: events || []
-        });
-    } catch (error) {
-        console.error('Error fetching events:', error);
-        res.json({
-            success: false,
-            events: []
-        });
-    }
+  try {
+    const events = await Event.find({ status: 'active' })
+      .sort({ date: -1 });
+
+    const formattedEvents = events.map(event => ({
+      id: event._id,
+      title: event.title || 'Untitled Event',
+      description: event.description || 'No description available',
+      date: event.date ? event.date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      time: event.time || '19:00',
+      location: event.location || 'Unknown Location',
+      venue: event.venue || 'Unknown Venue',
+      price: event.price || 0,
+      icon: event.icon || '🎭',
+      category: event.category || 'Other',
+      organizer: event.organizer || 'Unknown Organizer',
+      organizerBio: event.organizerBio || 'No bio available',
+      rating: event.rating || 0,
+      reviews: event.reviews || 0,
+      attendees: event.attendees || 0,
+      capacity: event.capacity || 100,
+      coordinates: event.coordinates || { lat: -1.2921, lng: 36.8219 }, // Default to Nairobi
+      featured: event.featured || false,
+      status: event.status || 'active',
+      image: event.image || '',
+      safetyRating: event.safetyRating || 5,
+      ticketTypes: event.ticketTypes || []
+    }));
+
+    res.json({ 
+      success: true, 
+      events: formattedEvents 
+    });
+  } catch (error) {
+    console.error('Error fetching events:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch events',
+      error: error.message
+    });
+  }
 });
 
 // GET /api/events/:id - Get single event details
 router.get('/api/events/:id', async (req, res) => {
     try {
-        const { id } = req.params;
-        
-        const event = await db.collection('events').findOne({ 
-            $or: [
-                { id: parseInt(id) },
-                { _id: id }
-            ]
-        });
+        const event = await Event.findById(req.params.id).lean();
         
         if (!event) {
             return res.status(404).json({
@@ -66,7 +83,6 @@ router.get('/api/events/:id', async (req, res) => {
 // POST /api/events/:id/interested - Toggle user interest in event
 router.post('/api/events/:id/interested', async (req, res) => {
     try {
-        const { id } = req.params;
         const { userId } = req.body;
         
         if (!userId) {
@@ -76,32 +92,23 @@ router.post('/api/events/:id/interested', async (req, res) => {
             });
         }
         
-        // Check if user is already interested
-        const existingInterest = await db.collection('user_interests').findOne({
+        const existingInterest = await UserInterest.findOne({
             userId,
-            eventId: parseInt(id)
+            eventId: req.params.id
         });
         
         if (existingInterest) {
-            // Remove interest
-            await db.collection('user_interests').deleteOne({
-                userId,
-                eventId: parseInt(id)
-            });
-            
+            await UserInterest.deleteOne({ _id: existingInterest._id });
             res.json({
                 success: true,
                 message: 'Interest removed',
                 interested: false
             });
         } else {
-            // Add interest
-            await db.collection('user_interests').insertOne({
+            await UserInterest.create({
                 userId,
-                eventId: parseInt(id),
-                createdAt: new Date()
+                eventId: req.params.id
             });
-            
             res.json({
                 success: true,
                 message: 'Interest added',
@@ -122,7 +129,6 @@ router.post('/api/events/:id/interested', async (req, res) => {
 // POST /api/events/:id/going - Toggle user going status
 router.post('/api/events/:id/going', async (req, res) => {
     try {
-        const { id } = req.params;
         const { userId } = req.body;
         
         if (!userId) {
@@ -132,32 +138,23 @@ router.post('/api/events/:id/going', async (req, res) => {
             });
         }
         
-        // Check if user is already going
-        const existingGoing = await db.collection('user_going').findOne({
+        const existingGoing = await UserGoing.findOne({
             userId,
-            eventId: parseInt(id)
+            eventId: req.params.id
         });
         
         if (existingGoing) {
-            // Remove going status
-            await db.collection('user_going').deleteOne({
-                userId,
-                eventId: parseInt(id)
-            });
-            
+            await UserGoing.deleteOne({ _id: existingGoing._id });
             res.json({
                 success: true,
                 message: 'Going status removed',
                 going: false
             });
         } else {
-            // Add going status
-            await db.collection('user_going').insertOne({
+            await UserGoing.create({
                 userId,
-                eventId: parseInt(id),
-                createdAt: new Date()
+                eventId: req.params.id
             });
-            
             res.json({
                 success: true,
                 message: 'Going status added',
@@ -178,7 +175,6 @@ router.post('/api/events/:id/going', async (req, res) => {
 // POST /api/events/:id/save - Toggle event save status
 router.post('/api/events/:id/save', async (req, res) => {
     try {
-        const { id } = req.params;
         const { userId } = req.body;
         
         if (!userId) {
@@ -188,32 +184,23 @@ router.post('/api/events/:id/save', async (req, res) => {
             });
         }
         
-        // Check if event is already saved
-        const existingSave = await db.collection('user_saved').findOne({
+        const existingSave = await UserSaved.findOne({
             userId,
-            eventId: parseInt(id)
+            eventId: req.params.id
         });
         
         if (existingSave) {
-            // Remove save
-            await db.collection('user_saved').deleteOne({
-                userId,
-                eventId: parseInt(id)
-            });
-            
+            await UserSaved.deleteOne({ _id: existingSave._id });
             res.json({
                 success: true,
                 message: 'Event removed from saved',
                 saved: false
             });
         } else {
-            // Add save
-            await db.collection('user_saved').insertOne({
+            await UserSaved.create({
                 userId,
-                eventId: parseInt(id),
-                createdAt: new Date()
+                eventId: req.params.id
             });
-            
             res.json({
                 success: true,
                 message: 'Event saved',
@@ -234,21 +221,18 @@ router.post('/api/events/:id/save', async (req, res) => {
 // GET /api/events/user/:userId/interactions - Get user's event interactions
 router.get('/api/events/user/:userId/interactions', async (req, res) => {
     try {
-        const { userId } = req.params;
-        
-        // Get all user interactions
         const [interested, going, saved] = await Promise.all([
-            db.collection('user_interests').find({ userId }).toArray(),
-            db.collection('user_going').find({ userId }).toArray(),
-            db.collection('user_saved').find({ userId }).toArray()
+            UserInterest.find({ userId: req.params.userId }).distinct('eventId'),
+            UserGoing.find({ userId: req.params.userId }).distinct('eventId'),
+            UserSaved.find({ userId: req.params.userId }).distinct('eventId')
         ]);
         
         res.json({
             success: true,
             interactions: {
-                interested: interested.map(i => i.eventId),
-                going: going.map(g => g.eventId),
-                saved: saved.map(s => s.eventId)
+                interested,
+                going,
+                saved
             }
         });
         
@@ -265,13 +249,11 @@ router.get('/api/events/user/:userId/interactions', async (req, res) => {
 // GET /api/events/categories - Get available event categories
 router.get('/api/events/categories', async (req, res) => {
     try {
-        const categories = await db.collection('events').distinct('category');
-        
+        const categories = await Event.distinct('category');
         res.json({
             success: true,
-            categories: categories.filter(cat => cat) // Remove null/undefined values
+            categories: categories.filter(cat => cat)
         });
-        
     } catch (error) {
         console.error('Error fetching categories:', error);
         res.status(500).json({
@@ -285,13 +267,11 @@ router.get('/api/events/categories', async (req, res) => {
 // GET /api/events/locations - Get available event locations
 router.get('/api/events/locations', async (req, res) => {
     try {
-        const locations = await db.collection('events').distinct('location');
-        
+        const locations = await Event.distinct('location');
         res.json({
             success: true,
-            locations: locations.filter(loc => loc) // Remove null/undefined values
+            locations: locations.filter(loc => loc)
         });
-        
     } catch (error) {
         console.error('Error fetching locations:', error);
         res.status(500).json({
@@ -305,17 +285,15 @@ router.get('/api/events/locations', async (req, res) => {
 // GET /api/events/featured - Get featured events
 router.get('/api/events/featured', async (req, res) => {
     try {
-        const featuredEvents = await db.collection('events')
-            .find({ featured: true })
+        const featuredEvents = await Event.find({ featured: true })
             .sort({ rating: -1 })
             .limit(6)
-            .toArray();
+            .lean();
         
         res.json({
             success: true,
             events: featuredEvents
         });
-        
     } catch (error) {
         console.error('Error fetching featured events:', error);
         res.status(500).json({
@@ -329,19 +307,16 @@ router.get('/api/events/featured', async (req, res) => {
 // GET /api/events/upcoming - Get upcoming events
 router.get('/api/events/upcoming', async (req, res) => {
     try {
-        const currentDate = new Date().toISOString().split('T')[0];
-        
-        const upcomingEvents = await db.collection('events')
-            .find({ date: { $gte: currentDate } })
+        const currentDate = new Date();
+        const upcomingEvents = await Event.find({ date: { $gte: currentDate } })
             .sort({ date: 1 })
             .limit(10)
-            .toArray();
+            .lean();
         
         res.json({
             success: true,
             events: upcomingEvents
         });
-        
     } catch (error) {
         console.error('Error fetching upcoming events:', error);
         res.status(500).json({
@@ -355,17 +330,15 @@ router.get('/api/events/upcoming', async (req, res) => {
 // GET /api/events/popular - Get popular events based on attendees
 router.get('/api/events/popular', async (req, res) => {
     try {
-        const popularEvents = await db.collection('events')
-            .find({})
+        const popularEvents = await Event.find({})
             .sort({ attendees: -1 })
             .limit(10)
-            .toArray();
+            .lean();
         
         res.json({
             success: true,
             events: popularEvents
         });
-        
     } catch (error) {
         console.error('Error fetching popular events:', error);
         res.status(500).json({
@@ -379,7 +352,6 @@ router.get('/api/events/popular', async (req, res) => {
 // POST /api/events/:id/reviews - Add review to event
 router.post('/api/events/:id/reviews', async (req, res) => {
     try {
-        const { id } = req.params;
         const { userId, rating, comment, userName } = req.body;
         
         if (!userId || !rating) {
@@ -389,19 +361,16 @@ router.post('/api/events/:id/reviews', async (req, res) => {
             });
         }
         
-        const review = {
+        const review = await EventReview.create({
             userId,
-            eventId: parseInt(id),
+            eventId: req.params.id,
             rating: parseInt(rating),
             comment: comment || '',
-            userName: userName || 'Anonymous',
-            createdAt: new Date()
-        };
-        
-        await db.collection('event_reviews').insertOne(review);
+            userName: userName || 'Anonymous'
+        });
         
         // Update event rating
-        await this.updateEventRating(parseInt(id));
+        await updateEventRating(req.params.id);
         
         res.json({
             success: true,
@@ -422,20 +391,17 @@ router.post('/api/events/:id/reviews', async (req, res) => {
 // GET /api/events/:id/reviews - Get event reviews
 router.get('/api/events/:id/reviews', async (req, res) => {
     try {
-        const { id } = req.params;
         const { page = 1, limit = 10 } = req.query;
-        
         const offset = (page - 1) * limit;
         
-        const reviews = await db.collection('event_reviews')
-            .find({ eventId: parseInt(id) })
-            .sort({ createdAt: -1 })
-            .skip(offset)
-            .limit(parseInt(limit))
-            .toArray();
-        
-        const totalReviews = await db.collection('event_reviews')
-            .countDocuments({ eventId: parseInt(id) });
+        const [reviews, totalReviews] = await Promise.all([
+            EventReview.find({ eventId: req.params.id })
+                .sort({ createdAt: -1 })
+                .skip(offset)
+                .limit(parseInt(limit))
+                .lean(),
+            EventReview.countDocuments({ eventId: req.params.id })
+        ]);
         
         res.json({
             success: true,
@@ -462,64 +428,25 @@ router.get('/api/events/:id/reviews', async (req, res) => {
 // Helper function to update event rating
 async function updateEventRating(eventId) {
     try {
-        const reviews = await db.collection('event_reviews')
-            .find({ eventId })
-            .toArray();
+        const reviews = await EventReview.find({ eventId });
         
         if (reviews.length > 0) {
             const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
             const averageRating = totalRating / reviews.length;
             
-            await db.collection('events').updateOne(
-                { id: eventId },
-                { 
-                    $set: { 
-                        rating: Math.round(averageRating * 10) / 10,
-                        reviews: reviews.length
-                    }
-                }
-            );
+            await Event.findByIdAndUpdate(eventId, {
+                rating: Math.round(averageRating * 10) / 10,
+                reviews: reviews.length
+            });
         }
     } catch (error) {
         console.error('Error updating event rating:', error);
     }
 }
 
-// GET /api/payments/:id/status - Check payment status
-router.get('/api/payments/:id/status', async (req, res) => {
-    try {
-        const { id } = req.params;
-        
-        const payment = await db.collection('payment_requests').findOne({ 
-            _id: id 
-        });
-        
-        if (!payment) {
-            return res.status(404).json({
-                success: false,
-                message: 'Payment not found'
-            });
-        }
-        
-        res.json({
-            success: true,
-            status: payment.status,
-            paymentDetails: payment
-        });
-        
-    } catch (error) {
-        console.error('Error checking payment status:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to check payment status'
-        });
-    }
-});
-
 // POST /api/events/:id/purchase - Handle ticket purchase
 router.post('/api/events/:id/purchase', async (req, res) => {
     try {
-        const { id } = req.params;
         const { userId, quantity, paymentMethod, totalAmount } = req.body;
         
         if (!userId || !quantity || !paymentMethod || !totalAmount) {
@@ -529,11 +456,7 @@ router.post('/api/events/:id/purchase', async (req, res) => {
             });
         }
         
-        // Verify event exists
-        const event = await db.collection('events').findOne({ 
-            id: parseInt(id) 
-        });
-        
+        const event = await Event.findById(req.params.id);
         if (!event) {
             return res.status(404).json({
                 success: false,
@@ -542,40 +465,34 @@ router.post('/api/events/:id/purchase', async (req, res) => {
         }
         
         // Check availability
-        const currentAttendees = event.attendees || 0;
-        const eventCapacity = event.capacity || 0;
-        
-        if (currentAttendees + quantity > eventCapacity) {
+        if (event.attendees + quantity > event.capacity) {
             return res.status(400).json({
                 success: false,
                 message: 'Not enough tickets available'
             });
         }
         
-        // Create ticket purchase record
-        const purchase = {
+        // Create tickets
+        const tickets = Array.from({ length: quantity }, () => ({
+            eventId: req.params.id,
+            userId
+        }));
+        
+        // Create purchase record
+        const purchase = await Ticket.create({
             userId,
-            eventId: parseInt(id),
-            quantity: parseInt(quantity),
-            totalAmount: parseFloat(totalAmount),
+            eventId: req.params.id,
+            quantity,
+            totalAmount,
             paymentMethod,
             status: 'confirmed',
-            purchaseDate: new Date(),
-            tickets: Array.from({ length: quantity }, (_, i) => ({
-                ticketId: `${id}-${Date.now()}-${i + 1}`,
-                eventId: parseInt(id),
-                userId,
-                purchaseDate: new Date()
-            }))
-        };
-        
-        await db.collection('ticket_purchases').insertOne(purchase);
+            tickets
+        });
         
         // Update event attendees count
-        await db.collection('events').updateOne(
-            { id: parseInt(id) },
-            { $inc: { attendees: parseInt(quantity) } }
-        );
+        await Event.findByIdAndUpdate(req.params.id, {
+            $inc: { attendees: quantity }
+        });
         
         res.json({
             success: true,
@@ -587,7 +504,8 @@ router.post('/api/events/:id/purchase', async (req, res) => {
         console.error('Error processing purchase:', error);
         res.status(500).json({
             success: false,
-            message: 'Purchase failed. Please try again.'
+            message: 'Purchase failed. Please try again.',
+            error: error.message
         });
     }
 });

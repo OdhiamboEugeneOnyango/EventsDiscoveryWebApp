@@ -40,17 +40,6 @@ const optionalAuth = (req, res, next) => {
     next();
 };
 
-// --- GET Events List ---
-router.get('/api/events', async (req, res) => {
-    try {
-        const events = await Event.find({}).select('_id title name date location attendees');
-        res.json({ success: true, events });
-    } catch (error) {
-        console.error('Error fetching events:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch events' });
-    }
-});
-
 // --- GET Events for Dropdown ---
 router.get('/api/events/dropdown', async (req, res) => {
     try {

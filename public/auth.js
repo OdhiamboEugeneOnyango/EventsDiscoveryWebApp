@@ -63,7 +63,7 @@ function initializeSignupForm() {
         lastName: document.getElementById('lastName'),
         email: document.getElementById('email'),
         phone: document.getElementById('phone'),
-        role: document.getElementById('role'),
+        roles: Array.from(document.getElementById('role').selectedOptions).map(opt => opt.value),
         password: document.getElementById('password'),
         confirmPassword: document.getElementById('confirmPassword'),
         adminInviteCode: document.getElementById('adminInviteCode')
@@ -149,7 +149,7 @@ function validateSignupForm() {
         email: document.getElementById('email').value,
         phone: document.getElementById('phone').value,
         location: document.getElementById('location').value,
-        role: document.getElementById('role').value,
+        roles: Array.from(document.getElementById('role').selectedOptions).map(opt => opt.value),
         password: document.getElementById('password').value,
         confirmPassword: document.getElementById('confirmPassword').value
     };
@@ -349,61 +349,91 @@ function checkPasswordStrength(password) {
     strengthElement.className = `password-strength ${strengthClass}`;
 }
 
-// Perform login
 async function performLogin() {
-    const email = document.getElementById('email').value;
+    const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
-    const rememberMe = document.getElementById('rememberMe').checked;
-    
-    // Show loading state
-    const submitBtn = document.querySelector('#loginForm button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    submitBtn.textContent = 'Signing In...';
-    submitBtn.disabled = true;
-    
+    const role = document.getElementById('loginRole').value;
+
+    if (!email || !password || !role) {
+        return showModal('error', 'Validation Error', 'All fields are required');
+    }
+
     try {
         const response = await fetch(`${API_BASE_URL}/auth/login`, {
             method: 'POST',
-            headers: {
+            headers: { 
                 'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
-            body: JSON.stringify({
-                email,
-                password,
-                role: document.getElementById('loginRole').value // Include role in login request
-            })
+            body: JSON.stringify({ email, password, role }),
+            credentials: 'include'
         });
-        
+
         const data = await response.json();
-        
-        if (data.success) {
-            // Store session data
-            if (rememberMe) {
-                localStorage.setItem('eventhub_remember', email);
-            }
-            
-            // Store token and user data
-            localStorage.setItem('eventhub_token', data.token);
-            sessionStorage.setItem('eventhub_user', JSON.stringify(data.user));
-            
-            showModal('success', 'Login Successful!', `Welcome back, ${data.user.firstName}! Redirecting...`, () => {
-                redirectBasedOnRole(data.user);
-            });
-        } else {
-            showModal('error', 'Login Failed', data.message || 'Invalid email or password. Please try again.');
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Login failed');
         }
+
+        // Store token and user
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('currentRole', role);  // Track selected role
+
+        // Redirect based on selected role
+        const redirectPaths = {
+            admin: '/admin-dashboard',
+            organizer: '/organizer.html',
+            artist: '/artist.html',
+            user: 'index.html'
+        };
+
+        window.location.href = redirectPaths[role] || '/';
         
     } catch (error) {
         console.error('Login error:', error);
-        showModal('error', 'Connection Error', 'Unable to connect to server. Please check your internet connection and try again.');
-    } finally {
-        // Reset button
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
+        let message = error.message;
+
+        if (error.message.includes('Failed to fetch')) {
+            message = `Cannot connect to server. Please check:
+                1. Backend is running (${API_BASE_URL})
+                2. No network issues
+                3. CORS is properly configured`;
+        }
+
+        showModal('error', 'Login Failed', message);
     }
 }
 
-// Perform signup
+/**
+ * Redirects the user based on their currently active role.
+ * @param {String} role — e.g. 'user', 'organizer', 'artist', 'admin'
+ */
+function redirectBasedOnRole(role) {
+  // If no explicit role is passed, try to read from localStorage
+  const currentRole = role || localStorage.getItem('currentRole');
+
+  switch (currentRole) {
+    case 'admin':
+      window.location.href = '/admin/dashboard.html';
+      break;
+    case 'organizer':
+      window.location.href = '/organizer.html';
+      break;
+    case 'artist':
+      window.location.href = '/artist.html';
+      break;
+    case 'user':
+      window.location.href = '/index.html';
+      break;
+    default:
+      // Fallback: if they somehow have another role (or none), send them to homepage
+      window.location.href = '/index.html';
+      break;
+  }
+}
+
+
 async function performSignup() {
     const formData = {
         firstName: document.getElementById('firstName').value,
@@ -411,31 +441,28 @@ async function performSignup() {
         email: document.getElementById('email').value,
         phone: document.getElementById('phone').value,
         location: document.getElementById('location').value,
-        role: document.getElementById('role').value,
+        roles: Array.from(document.getElementById('role').selectedOptions).map(opt => opt.value),
         password: document.getElementById('password').value,
         confirmPassword: document.getElementById('confirmPassword').value,
         interests: Array.from(document.querySelectorAll('input[name="interests"]:checked')).map(cb => cb.value),
         newsletter: document.getElementById('newsletter').checked,
-        adminInviteCode: document.getElementById('adminInviteCode') ? document.getElementById('adminInviteCode').value : null
+        adminInviteCode: document.getElementById('adminInviteCode')?.value || null
     };
-    
-    // Show loading state
+
     const submitBtn = document.querySelector('#signupForm button[type="submit"]');
     const originalText = submitBtn.textContent;
     submitBtn.textContent = 'Creating Account...';
     submitBtn.disabled = true;
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/auth/signup`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             showModal('success', 'Account Created!', 'Your account has been created successfully. You can now sign in.', () => {
                 window.location.href = 'login.html';
@@ -443,16 +470,15 @@ async function performSignup() {
         } else {
             showModal('error', 'Signup Failed', data.message || 'Unable to create account. Please try again.');
         }
-        
     } catch (error) {
         console.error('Signup error:', error);
         showModal('error', 'Connection Error', 'Unable to connect to server. Please check your internet connection and try again.');
     } finally {
-        // Reset button
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
     }
 }
+
 
 // Redirect user based on role after login/signup
 function redirectBasedOnRole(user) {

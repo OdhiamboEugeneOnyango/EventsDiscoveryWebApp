@@ -1,4 +1,3 @@
-// User Schema
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -25,11 +24,10 @@ const userSchema = new mongoose.Schema({
         trim: true,
         match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please enter a valid email']
     },
-    role: {
-        type: String,
-        required: true,
+    roles: {
+        type: [String],
         enum: ['user', 'organizer', 'artist', 'admin'],
-        default: 'user'
+        default: ['user']
     },
     phone: {
         type: String,
@@ -91,7 +89,7 @@ userSchema.methods.generateAuthToken = function() {
             email: this.email,
             firstName: this.firstName,
             lastName: this.lastName,
-            role: this.role
+            roles: this.roles  // ✅ updated from 'role' to 'roles'
         },
         JWT_SECRET,
         { expiresIn: '24h' }

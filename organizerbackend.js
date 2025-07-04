@@ -1,250 +1,375 @@
 const express = require('express');
-const router = express.Router();
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const User = require('./models/User');
-const Event = require('./models/Event');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Import models
 const Organizer = require('./models/Organizer');
-require('dotenv').config();
+const Event = require('./models/Event');
+const Application = require('./models/Application');
+const VenueRequest = require('./models/VenueRequest');
+const User = require('./models/User'); // Add this import
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
+const router = express.Router();
 
-// --- Middleware ---
-const authenticateToken = async (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({ success: false, message: 'Access token required' });
-
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const user = await User.findById(decoded.userId).select('-password');
-        if (!user || !user.isActive) {
-            return res.status(401).json({ success: false, message: 'Invalid or inactive user' });
-        }
-        req.user = user;
-        next();
-    } catch (error) {
-        return res.status(403).json({ success: false, message: 'Invalid or expired token' });
+// Multer configuration for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = './uploads/events';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
-};
-
-const requireRole = (...roles) => {
-    return (req, res, next) => {
-        if (!req.user) {
-            return res.status(401).json({ success: false, message: 'Authentication required' });
-        }
-        if (!roles.includes(req.user.role)) {
-            return res.status(403).json({ success: false, message: `Access denied. Required role: ${roles.join(' or ')}` });
-        }
-        next();
-    };
-};
-
-const checkEventOwnership = async (req, res, next) => {
-    try {
-        const eventId = req.params.id;
-        const event = await Event.findById(eventId);
-        if (!event) {
-            return res.status(404).json({ success: false, message: 'Event not found' });
-        }
-        if (req.user.role === 'admin' || event.organizer.toString() === req.user._id.toString()) {
-            req.event = event;
-            next();
-        } else {
-            return res.status(403).json({ success: false, message: 'You can only modify your own events' });
-        }
-    } catch (error) {
-        return res.status(500).json({ success: false, message: 'Error checking event ownership' });
-    }
-};
-
-// --- Auth Routes (for organizer dashboard) ---
-router.post('/api/organizer/register', async (req, res) => {
-    try {
-        const { email, password, name } = req.body;
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ success: false, message: 'User already exists' });
-        }
-        const hashedPassword = await bcrypt.hash(password, 12);
-        const user = new User({
-            email,
-            password: hashedPassword,
-            name,
-            role: 'organizer'
-        });
-        await user.save();
-        const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
-        res.status(201).json({
-            success: true,
-            message: 'Organizer registered successfully',
-            token,
-            user: { id: user._id, email: user.email, name: user.name, role: user.role }
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Error registering organizer' });
-    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
+  }
 });
 
-router.post('/api/organizer/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const user = await User.findOne({ email, role: 'organizer' });
-        if (!user) {
-            return res.status(400).json({ success: false, message: 'Invalid credentials' });
-        }
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-            return res.status(400).json({ success: false, message: 'Invalid credentials' });
-        }
-        if (!user.isActive) {
-            return res.status(400).json({ success: false, message: 'Account is deactivated' });
-        }
-        user.lastLogin = new Date();
-        await user.save();
-        const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
-        res.json({
-            success: true,
-            message: 'Login successful',
-            token,
-            user: { id: user._id, email: user.email, name: user.name, role: user.role }
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Error logging in' });
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only JPEG, PNG, and GIF files are allowed'));
     }
+  }
 });
 
-router.get('/api/organizer/verify', authenticateToken, requireRole('organizer', 'admin'), (req, res) => {
-    res.json({
-        success: true,
-        user: {
-            id: req.user._id,
-            email: req.user.email,
-            name: req.user.name,
-            role: req.user.role
-        }
+// ORGANIZER PROFILE ROUTES
+
+// Get organizer profile - FIXED TO MATCH FRONTEND EXPECTATIONS
+router.get('/profile', async (req, res) => {
+  try {
+    // Get user data first
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Check if user has organizer profile
+    const organizer = await Organizer.findOne({ userId: req.user.userId });
+    
+    // Return user data with organizer info if exists
+    res.json({ 
+      success: true, 
+      user: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        organizerProfile: organizer
+      }
     });
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-// --- Event Routes (Protected) ---
-router.get('/api/organizer/events', authenticateToken, requireRole('organizer', 'admin'), async (req, res) => {
+// Update organizer profile
+router.put('/profile', upload.single('logo'), async (req, res) => {
+  try {
+    const updates = {
+      organizationName: req.body.organizationName,
+      description: req.body.description,
+      website: req.body.website,
+      contactEmail: req.body.contactEmail,
+      contactPhone: req.body.contactPhone
+    };
+
+    if (req.file) {
+      updates.logo = `/uploads/events/${req.file.filename}`;
+    }
+
+    const organizer = await Organizer.findOneAndUpdate(
+      { userId: req.user.userId },
+      updates,
+      { new: true, runValidators: true }
+    );
+
+    if (!organizer) {
+      return res.status(404).json({ success: false, message: 'Organizer profile not found' });
+    }
+
+    res.json({ success: true, message: 'Profile updated', organizer });
+  } catch (error) {
+    console.error('Error updating organizer profile:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// EVENT MANAGEMENT ROUTES
+
+// --- GET Events List ---
+router.get('/api/events', async (req, res) => {
     try {
-        let query = {};
-        if (req.user.role === 'organizer') {
-            query.organizer = req.user._id;
-        }
-        const events = await Event.find(query)
-            .populate('organizer', 'name email')
-            .sort({ createdAt: -1 });
+        const events = await Event.find({}).select('_id title name date location attendees time	location category status	price');
         res.json({ success: true, events });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Error fetching events' });
+        console.error('Error fetching events:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch events' });
     }
 });
 
-router.post('/api/organizer/events', authenticateToken, requireRole('organizer', 'admin'), async (req, res) => {
-    try {
-        const eventData = {
-            ...req.body,
-            organizer: req.user._id,
-            updatedAt: new Date()
-        };
-        const event = new Event(eventData);
-        await event.save();
-        const populatedEvent = await Event.findById(event._id)
-            .populate('organizer', 'name email');
-        res.status(201).json({
-            success: true,
-            message: 'Event created successfully',
-            event: populatedEvent
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Error creating event' });
+// Get organizer's events - FIXED ROUTE
+/*router.get('/api/events', async (req, res) => {
+  try {
+    const organizer = await Organizer.findOne({ userId: req.user.userId });
+    if (!organizer) {
+      return res.status(404).json({ success: false, message: 'Organizer profile not found' });
     }
+
+    const events = await Event.find({ organizerId: organizer._id })
+      .sort({ date: 1 });
+
+    res.json({ success: true, events });
+  } catch (error) {
+    console.error('Error fetching events:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});*/
+
+// Create new event - FIXED ROUTE WITH IMAGE UPLOAD
+router.post('/api/events', upload.single('image'), async (req, res) => {
+  try {
+    /*const organizer = await Organizer.findOne({ userId: req.user.userId });
+    if (!organizer) {
+      return res.status(404).json({ success: false, message: 'Organizer profile not found' });
+    }*/
+
+    const eventData = {
+      name: req.body.name, // Changed from title to name to match frontend
+      description: req.body.description,
+      category: req.body.category,
+      date: req.body.date,
+      time: req.body.time,
+      location: req.body.location,
+      capacity: req.body.capacity ? parseInt(req.body.capacity) : null,
+      price: req.body.price ? parseFloat(req.body.price) : 0,
+      organizerId: organizer._id,
+      status: req.body.status || 'active',
+      tags: req.body.tags || []
+    };
+
+    if (req.file) {
+      eventData.image = `/uploads/events/${req.file.filename}`;
+    }
+
+    const event = new Event(eventData);
+    await event.save();
+
+    res.status(201).json({ 
+      success: true, 
+      message: 'Event created successfully', 
+      event 
+    });
+  } catch (error) {
+    console.error('Error creating event:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-router.put('/api/organizer/events/:id', authenticateToken, requireRole('organizer', 'admin'), checkEventOwnership, async (req, res) => {
-    try {
-        const updateData = {
-            ...req.body,
-            updatedAt: new Date()
-        };
-        const event = await Event.findByIdAndUpdate(
-            req.params.id,
-            updateData,
-            { new: true, runValidators: true }
-        ).populate('organizer', 'name email');
-        res.json({
-            success: true,
-            message: 'Event updated successfully',
-            event
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Error updating event' });
+// Update event - FIXED ROUTE
+router.put('/api/events/:eventId', upload.single('image'), async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const organizer = await Organizer.findOne({ userId: req.user.userId });
+    
+    if (!organizer) {
+      return res.status(404).json({ success: false, message: 'Organizer profile not found' });
     }
+
+    const event = await Event.findOne({ 
+      _id: eventId, 
+      organizerId: organizer._id 
+    });
+
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    const updates = {
+      name: req.body.name,
+      description: req.body.description,
+      category: req.body.category,
+      date: req.body.date,
+      time: req.body.time,
+      location: req.body.location,
+      capacity: req.body.capacity ? parseInt(req.body.capacity) : null,
+      price: req.body.price ? parseFloat(req.body.price) : 0,
+      status: req.body.status,
+      tags: req.body.tags || []
+    };
+
+    if (req.file) {
+      updates.image = `/uploads/events/${req.file.filename}`;
+    }
+
+    const updatedEvent = await Event.findByIdAndUpdate(
+      eventId, 
+      updates, 
+      { new: true }
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Event updated successfully', 
+      event: updatedEvent 
+    });
+  } catch (error) {
+    console.error('Error updating event:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-router.delete('/api/organizer/events/:id', authenticateToken, requireRole('organizer', 'admin'), checkEventOwnership, async (req, res) => {
-    try {
-        await Event.findByIdAndDelete(req.params.id);
-        res.json({ success: true, message: 'Event deleted successfully' });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Error deleting event' });
+// Delete event - NEW ROUTE
+router.delete('/api/events/:eventId', async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const organizer = await Organizer.findOne({ userId: req.user.userId });
+    
+    if (!organizer) {
+      return res.status(404).json({ success: false, message: 'Organizer profile not found' });
     }
+
+    const event = await Event.findOne({ 
+      _id: eventId, 
+      organizerId: organizer._id 
+    });
+
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    await Event.findByIdAndDelete(eventId);
+
+    res.json({ 
+      success: true, 
+      message: 'Event deleted successfully' 
+    });
+  } catch (error) {
+    console.error('Error deleting event:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-router.get('/api/organizer/events/:id', authenticateToken, requireRole('organizer', 'admin'), checkEventOwnership, async (req, res) => {
-    try {
-        const event = await Event.findById(req.params.id)
-            .populate('organizer', 'name email');
-        res.json({ success: true, event });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Error fetching event' });
+// Get event statistics - FIXED ROUTE
+router.get('/stats', async (req, res) => {
+  try {
+    const organizer = await Organizer.findOne({ userId: req.user.userId });
+    if (!organizer) {
+      return res.status(404).json({ success: false, message: 'Organizer profile not found' });
     }
+
+    const [totalEvents, activeEvents, totalAttendees, totalRevenue] = await Promise.all([
+      Event.countDocuments({ organizerId: organizer._id }),
+      Event.countDocuments({ organizerId: organizer._id, status: 'active' }),
+      Event.aggregate([
+        { $match: { organizerId: organizer._id } },
+        { $group: { _id: null, total: { $sum: '$attendees' } } }
+      ]),
+      Event.aggregate([
+        { $match: { organizerId: organizer._id } },
+        { $group: { _id: null, total: { $sum: { $multiply: ['$attendees', '$price'] } } } }
+      ])
+    ]);
+
+    res.json({
+      success: true,
+      totalEvents,
+      activeEvents,
+      totalAttendees: totalAttendees[0]?.total || 0,
+      totalRevenue: totalRevenue[0]?.total || 0
+    });
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-// --- Analytics Route (Protected) ---
-router.get('/api/organizer/analytics/dashboard', authenticateToken, requireRole('organizer', 'admin'), async (req, res) => {
-    try {
-        let query = {};
-        if (req.user.role === 'organizer') {
-            query.organizer = req.user._id;
-        }
-        const totalEvents = await Event.countDocuments(query);
-        const activeEvents = await Event.countDocuments({ ...query, status: 'active' });
-        const draftEvents = await Event.countDocuments({ ...query, status: 'draft' });
-        const endedEvents = await Event.countDocuments({ ...query, status: 'ended' });
-        const events = await Event.find(query);
-        const totalAttendees = events.reduce((sum, event) => sum + event.attendees, 0);
-        const totalRevenue = events.reduce((sum, event) => sum + event.revenue, 0);
+// PUBLIC ROUTES (without authentication)
 
-        res.json({
-            success: true,
-            analytics: {
-                totalEvents,
-                activeEvents,
-                draftEvents,
-                endedEvents,
-                totalAttendees,
-                totalRevenue
-            }
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Error fetching analytics' });
-    }
+// Public route: Get list of active events (simplified)
+router.get('/api/events', async (req, res) => {
+  try {
+    const events = await Event.find({ status: 'active' })
+      .select('_id name') // Changed from title to name
+      .sort({ date: -1 });
+
+    res.json({ 
+      success: true, 
+      events 
+    });
+  } catch (error) {
+    console.error('Error fetching events:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch events' 
+    });
+  }
 });
 
-// --- Organizer Profile (optional, if you want to fetch organizer info) ---
-router.get('/api/organizer/profile', authenticateToken, requireRole('organizer', 'admin'), async (req, res) => {
-    try {
-        const organizer = await Organizer.findOne({ user: req.user._id }).populate('user', 'name email');
-        if (!organizer) {
-            return res.status(404).json({ success: false, message: 'Organizer profile not found' });
-        }
-        res.json({ success: true, organizer });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Error fetching organizer profile' });
+// Private route: Get event details by ID
+router.get('/api/events/:eventId', async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.eventId)
+      .populate('organizerId', 'organizationName logo');
+
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
     }
+
+    res.json({ success: true, event });
+  } catch (error) {
+    console.error('Error fetching event details:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// APPLICATION MANAGEMENT
+
+// Get applications for organizer's events
+router.get('/applications', async (req, res) => {
+  try {
+    const organizer = await Organizer.findOne({ userId: req.user.userId });
+    if (!organizer) {
+      return res.status(404).json({ success: false, message: 'Organizer profile not found' });
+    }
+
+    const events = await Event.find({ organizerId: organizer._id }).select('_id');
+    const eventIds = events.map(event => event._id);
+
+    const applications = await Application.find({ eventId: { $in: eventIds } })
+      .populate('userId', 'firstName lastName email')
+      .populate('eventId', 'name') // Changed from title to name
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, applications });
+  } catch (error) {
+    console.error('Error fetching applications:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Error handling middleware
+router.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ success: false, message: 'File too large' });
+    }
+  }
+  
+  if (error.message === 'Only JPEG, PNG, and GIF files are allowed') {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+  
+  console.error('Unhandled error:', error);
+  res.status(500).json({ success: false, message: 'Internal server error' });
 });
 
 module.exports = router;

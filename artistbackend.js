@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { check, validationResult } = require('express-validator');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
-// Import models
+// Import Models
 const Artist = require('./models/Artist');
 const User = require('./models/User');
 const Event = require('./models/Event');
@@ -12,516 +13,346 @@ const Contact = require('./models/Contact');
 const Merchandise = require('./models/Merchandise');
 const ArtGallery = require('./models/ArtGallery');
 
-// Middleware to authenticate user
-const auth = (req, res, next) => {
-    const token = req.header('x-auth-token') || req.cookies.token;
-    
-    if (!token) {
-        return res.status(401).json({ msg: 'No token, authorization denied' });
-    }
-    
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded.user;
-        next();
-    } catch (err) {
-        res.status(401).json({ msg: 'Token is not valid' });
-    }
-};
+// JWT Secret (Move to .env in production)
+const JWT_SECRET = 'your-secret-key-here';
 
-// Middleware to check artist role
-const checkArtistRole = async (req, res, next) => {
-    try {
-        const user = await User.findById(req.user.id);
-        if (!user || !user.roles.includes('artist')) {
-            return res.status(403).json({ msg: 'Access denied. Artist role required.' });
-        }
-        next();
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-};
+// Middleware: Authenticate token
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Access denied' });
 
-// Middleware to check artist ownership
-const checkArtistOwnership = async (req, res, next) => {
-    try {
-        const artist = await Artist.findById(req.params.artistId);
-        if (!artist) {
-            return res.status(404).json({ msg: 'Artist not found' });
-        }
-        
-        if (artist.userId.toString() !== req.user.id) {
-            return res.status(403).json({ msg: 'Access denied. You can only edit your own artist profile.' });
-        }
-        
-        req.artist = artist;
-        next();
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-};
+  try {
+    const user = jwt.verify(token, JWT_SECRET);
+    req.user = user;
+    next();
+  } catch (err) {
+    return res.status(403).json({ message: 'Invalid token' });
+  }
+}
 
-// @route   GET /api/artists
-// @desc    Get all artists
-// @access  Public
-router.get('/', async (req, res) => {
-    try {
-        const artists = await Artist.find({ isActive: true })
-            .select('name profilePic bio')
-            .sort({ createdAt: -1 });
-        res.json(artists);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+// Multer configuration for image uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = './uploads/artists';
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
+  }
+});
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only JPEG, PNG, and GIF files are allowed'));
     }
+  }
 });
 
-// @route   GET /api/artists/search/:query
-// @desc    Search artists by name or bio
-// @access  Public
-router.get('/search/:query', async (req, res) => {
-    try {
-        const searchQuery = req.params.query;
-        const artists = await Artist.find({
-            isActive: true,
-            $or: [
-                { name: { $regex: searchQuery, $options: 'i' } },
-                { bio: { $regex: searchQuery, $options: 'i' } }
-            ]
-        }).select('name profilePic bio');
-        
-        res.json(artists);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
+// GET /api/artists - Get list of all artists
+router.get('/api/artists', async (req, res) => {
+  try {
+    const artists = await Artist.find().select('_id name profilePic');
+    res.json({ success: true, artists });
+  } catch (error) {
+    console.error('Error fetching artists:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-// @route   GET /api/artists/:id
-// @desc    Get artist by ID with all details
-// @access  Public
-router.get('/:id', async (req, res) => {
-    try {
-        const artist = await Artist.findById(req.params.id)
-            .populate('userId', 'name email')
-            .populate('merchandise')
-            .populate('upcomingEvents')
-            .populate('artGallery');
-        
-        if (!artist || !artist.isActive) {
-            return res.status(404).json({ msg: 'Artist not found' });
-        }
-        
-        res.json(artist);
-    } catch (err) {
-        console.error(err.message);
-        if (err.kind === 'ObjectId') {
-            return res.status(404).json({ msg: 'Artist not found' });
-        }
-        res.status(500).send('Server Error');
+// GET /api/artists/:id - Get single artist profile
+router.get('/api/artists/:id', async (req, res) => {
+  try {
+    const artist = await Artist.findById(req.params.id)
+      .populate('merchandise')
+      .populate('upcomingEvents')
+      .populate('artGallery');
+
+    if (!artist) {
+      return res.status(404).json({ success: false, message: 'Artist not found' });
     }
+
+    res.json({ success: true, ...artist.toObject(), id: artist._id });
+  } catch (error) {
+    console.error('Error fetching artist data:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-// @route   POST /api/artists
-// @desc    Create artist profile
-// @access  Private (Artist role required)
-router.post('/', [
-    auth,
-    checkArtistRole,
-    [
-        check('name', 'Name is required').not().isEmpty(),
-        check('bio', 'Bio is required').not().isEmpty(),
-        check('profilePic', 'Profile picture URL is required').isURL()
-    ]
-], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+// POST /api/artists - Create new artist profile
+router.post('/api/artists', authenticateToken, upload.single('profilePic'), async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
-    
-    const { name, bio, profilePic, social } = req.body;
-    
-    try {
-        // Check if user already has an artist profile
-        let artist = await Artist.findOne({ userId: req.user.id });
-        if (artist) {
-            return res.status(400).json({ msg: 'Artist profile already exists' });
-        }
-        
-        artist = new Artist({
-            userId: req.user.id,
-            name,
-            bio,
-            profilePic,
-            social: social || {}
-        });
-        
-        await artist.save();
-        
-        // Populate the response
-        await artist.populate('userId', 'name email');
-        
-        res.json(artist);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+
+    // Check if user already has an artist profile
+    const existingArtist = await Artist.findOne({ user: user._id });
+    if (existingArtist) {
+      return res.status(400).json({ success: false, message: 'Artist profile already exists' });
     }
+
+    const newArtist = new Artist({
+      name: req.body.name,
+      bio: req.body.bio || '',
+      profilePic: req.file ? `/uploads/artists/${req.file.filename}` : '',
+      social: JSON.parse(req.body.social || '{}'),
+      user: user._id
+    });
+
+    await newArtist.save();
+
+    res.status(201).json({ success: true, message: 'Artist profile created', artist: newArtist });
+  } catch (error) {
+    console.error('Error creating artist:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-// @route   PUT /api/artists/:id
-// @desc    Update artist profile
-// @access  Private (Artist owner only)
-router.put('/:id', [
-    auth,
-    checkArtistRole,
-    checkArtistOwnership
-], async (req, res) => {
-    const { name, bio, profilePic, social } = req.body;
-    
-    try {
-        const artistFields = {};
-        if (name) artistFields.name = name;
-        if (bio) artistFields.bio = bio;
-        if (profilePic) artistFields.profilePic = profilePic;
-        if (social) artistFields.social = social;
-        
-        const artist = await Artist.findByIdAndUpdate(
-            req.params.id,
-            { $set: artistFields },
-            { new: true }
-        ).populate('userId', 'name email');
-        
-        res.json(artist);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+// PUT /api/artists/:id - Update artist profile
+router.put('/artists/:id', authenticateToken, upload.single('profilePic'), async (req, res) => {
+  try {
+    const artist = await Artist.findById(req.params.id);
+    if (!artist) {
+      return res.status(404).json({ success: false, message: 'Artist not found' });
     }
+
+    // Ensure current user is owner
+    if (artist.user.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+
+    const updates = {
+      name: req.body.name,
+      bio: req.body.bio,
+      social: JSON.parse(req.body.social || '{}')
+    };
+
+    if (req.file) {
+      updates.profilePic = `/uploads/artists/${req.file.filename}`;
+    }
+
+    const updatedArtist = await Artist.findByIdAndUpdate(req.params.id, updates, { new: true });
+
+    res.json({ success: true, message: 'Artist updated', artist: updatedArtist });
+  } catch (error) {
+    console.error('Error updating artist:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-// @route   GET /api/artists/:id/owner
-// @desc    Check if current user is the owner of the artist profile
-// @access  Private
-router.get('/:id/owner', auth, async (req, res) => {
-    try {
-        const artist = await Artist.findById(req.params.id);
-        if (!artist) {
-            return res.status(404).json({ msg: 'Artist not found' });
-        }
-        
-        const isOwner = artist.userId.toString() === req.user.id;
-        res.json({ isOwner });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+// POST /api/artists/:id/merchandise - Add merchandise
+router.post('/artists/:id/merchandise', authenticateToken, async (req, res) => {
+  try {
+    const artist = await Artist.findById(req.params.id);
+    if (!artist) {
+      return res.status(404).json({ success: false, message: 'Artist not found' });
     }
+
+    if (artist.user.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+
+    const newMerch = new Merchandise({
+      name: req.body.name,
+      description: req.body.description,
+      price: parseFloat(req.body.price),
+      image: req.body.image,
+      artist: artist._id
+    });
+
+    await newMerch.save();
+    artist.merchandise.push(newMerch._id);
+    await artist.save();
+
+    res.status(201).json({ success: true, message: 'Merchandise added', item: newMerch });
+  } catch (error) {
+    console.error('Error adding merchandise:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-// @route   POST /api/artists/:artistId/merchandise
-// @desc    Add merchandise to artist profile
-// @access  Private (Artist owner only)
-router.post('/:artistId/merchandise', [
-    auth,
-    checkArtistRole,
-    checkArtistOwnership,
-    [
-        check('name', 'Name is required').not().isEmpty(),
-        check('price', 'Price must be a valid number').isFloat({ min: 0 }),
-        check('image', 'Image URL is required').isURL()
-    ]
-], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+// DELETE /api/artists/:id/merchandise/:itemId - Delete merchandise
+router.delete('/artists/:id/merchandise/:itemId', authenticateToken, async (req, res) => {
+  try {
+    const artist = await Artist.findById(req.params.id);
+    if (!artist) {
+      return res.status(404).json({ success: false, message: 'Artist not found' });
     }
-    
-    const { name, description, price, image } = req.body;
-    
-    try {
-        const merchandise = new Merchandise({
-            artistId: req.params.artistId,
-            name,
-            description,
-            price,
-            image
-        });
-        
-        await merchandise.save();
-        
-        // Add to artist's merchandise array
-        await Artist.findByIdAndUpdate(
-            req.params.artistId,
-            { $push: { merchandise: merchandise._id } }
-        );
-        
-        res.json(merchandise);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+
+    if (artist.user.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
     }
+
+    await Merchandise.findByIdAndDelete(req.params.itemId);
+    artist.merchandise.pull(req.params.itemId);
+    await artist.save();
+
+    res.json({ success: true, message: 'Merchandise deleted' });
+  } catch (error) {
+    console.error('Error deleting merchandise:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-// @route   DELETE /api/artists/:artistId/merchandise/:merchId
-// @desc    Delete merchandise item
-// @access  Private (Artist owner only)
-router.delete('/:artistId/merchandise/:merchId', [
-    auth,
-    checkArtistRole,
-    checkArtistOwnership
-], async (req, res) => {
-    try {
-        const merchandise = await Merchandise.findById(req.params.merchId);
-        if (!merchandise) {
-            return res.status(404).json({ msg: 'Merchandise not found' });
-        }
-        
-        // Remove from artist's merchandise array
-        await Artist.findByIdAndUpdate(
-            req.params.artistId,
-            { $pull: { merchandise: req.params.merchId } }
-        );
-        
-        await Merchandise.findByIdAndDelete(req.params.merchId);
-        
-        res.json({ msg: 'Merchandise removed' });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+// POST /api/artists/:id/events - Add event
+router.post('/artists/:id/events', authenticateToken, async (req, res) => {
+  try {
+    const artist = await Artist.findById(req.params.id);
+    if (!artist) {
+      return res.status(404).json({ success: false, message: 'Artist not found' });
     }
+
+    if (artist.user.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+
+    const newEvent = new Event({
+      title: req.body.title,
+      date: req.body.date,
+      location: req.body.location,
+      time: req.body.time,
+      ticketLink: req.body.ticketLink,
+      artist: artist._id
+    });
+
+    await newEvent.save();
+    artist.upcomingEvents.push(newEvent._id);
+    await artist.save();
+
+    res.status(201).json({ success: true, message: 'Event added', event: newEvent });
+  } catch (error) {
+    console.error('Error adding event:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-// @route   POST /api/artists/:artistId/events
-// @desc    Add event to artist profile
-// @access  Private (Artist owner only)
-router.post('/:artistId/events', [
-    auth,
-    checkArtistRole,
-    checkArtistOwnership,
-    [
-        check('title', 'Title is required').not().isEmpty(),
-        check('date', 'Date is required').isISO8601(),
-        check('location', 'Location is required').not().isEmpty(),
-        check('time', 'Time is required').not().isEmpty()
-    ]
-], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+// DELETE /api/artists/:id/events/:eventId - Delete event
+router.delete('/artists/:id/events/:eventId', authenticateToken, async (req, res) => {
+  try {
+    const artist = await Artist.findById(req.params.id);
+    if (!artist) {
+      return res.status(404).json({ success: false, message: 'Artist not found' });
     }
-    
-    const { title, date, location, time, ticketLink } = req.body;
-    
-    try {
-        const event = new Event({
-            artistId: req.params.artistId,
-            title,
-            date,
-            location,
-            time,
-            ticketLink
-        });
-        
-        await event.save();
-        
-        // Add to artist's upcoming events array
-        await Artist.findByIdAndUpdate(
-            req.params.artistId,
-            { $push: { upcomingEvents: event._id } }
-        );
-        
-        res.json(event);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+
+    if (artist.user.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
     }
+
+    await Event.findByIdAndDelete(req.params.eventId);
+    artist.upcomingEvents.pull(req.params.eventId);
+    await artist.save();
+
+    res.json({ success: true, message: 'Event deleted' });
+  } catch (error) {
+    console.error('Error deleting event:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-// @route   DELETE /api/artists/:artistId/events/:eventId
-// @desc    Delete event
-// @access  Private (Artist owner only)
-router.delete('/:artistId/events/:eventId', [
-    auth,
-    checkArtistRole,
-    checkArtistOwnership
-], async (req, res) => {
-    try {
-        const event = await Event.findById(req.params.eventId);
-        if (!event) {
-            return res.status(404).json({ msg: 'Event not found' });
-        }
-        
-        // Remove from artist's events array
-        await Artist.findByIdAndUpdate(
-            req.params.artistId,
-            { $pull: { upcomingEvents: req.params.eventId } }
-        );
-        
-        await Event.findByIdAndDelete(req.params.eventId);
-        
-        res.json({ msg: 'Event removed' });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+// POST /api/artists/:id/gallery - Add art piece
+router.post('/artists/:id/gallery', authenticateToken, async (req, res) => {
+  try {
+    const artist = await Artist.findById(req.params.id);
+    if (!artist) {
+      return res.status(404).json({ success: false, message: 'Artist not found' });
     }
+
+    if (artist.user.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+
+    const newArt = new ArtGallery({
+      title: req.body.title,
+      description: req.body.description,
+      image: req.body.image,
+      artist: artist._id
+    });
+
+    await newArt.save();
+    artist.artGallery.push(newArt._id);
+    await artist.save();
+
+    res.status(201).json({ success: true, message: 'Art piece added', art: newArt });
+  } catch (error) {
+    console.error('Error adding art piece:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-// @route   POST /api/artists/:artistId/gallery
-// @desc    Add art piece to gallery
-// @access  Private (Artist owner only)
-router.post('/:artistId/gallery', [
-    auth,
-    checkArtistRole,
-    checkArtistOwnership,
-    [
-        check('title', 'Title is required').not().isEmpty(),
-        check('image', 'Image URL is required').isURL()
-    ]
-], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+// DELETE /api/artists/:id/gallery/:artId - Delete art piece
+router.delete('/artists/:id/gallery/:artId', authenticateToken, async (req, res) => {
+  try {
+    const artist = await Artist.findById(req.params.id);
+    if (!artist) {
+      return res.status(404).json({ success: false, message: 'Artist not found' });
     }
-    
-    const { title, description, image } = req.body;
-    
-    try {
-        const artPiece = new ArtGallery({
-            artistId: req.params.artistId,
-            title,
-            description,
-            image
-        });
-        
-        await artPiece.save();
-        
-        // Add to artist's art gallery array
-        await Artist.findByIdAndUpdate(
-            req.params.artistId,
-            { $push: { artGallery: artPiece._id } }
-        );
-        
-        res.json(artPiece);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+
+    if (artist.user.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
     }
+
+    await ArtGallery.findByIdAndDelete(req.params.artId);
+    artist.artGallery.pull(req.params.artId);
+    await artist.save();
+
+    res.json({ success: true, message: 'Art piece deleted' });
+  } catch (error) {
+    console.error('Error deleting art piece:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-// @route   DELETE /api/artists/:artistId/gallery/:artId
-// @desc    Delete art piece
-// @access  Private (Artist owner only)
-router.delete('/:artistId/gallery/:artId', [
-    auth,
-    checkArtistRole,
-    checkArtistOwnership
-], async (req, res) => {
-    try {
-        const artPiece = await ArtGallery.findById(req.params.artId);
-        if (!artPiece) {
-            return res.status(404).json({ msg: 'Art piece not found' });
-        }
-        
-        // Remove from artist's gallery array
-        await Artist.findByIdAndUpdate(
-            req.params.artistId,
-            { $pull: { artGallery: req.params.artId } }
-        );
-        
-        await ArtGallery.findByIdAndDelete(req.params.artId);
-        
-        res.json({ msg: 'Art piece removed' });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-});
-
-// @route   POST /api/artists/:artistId/contact
-// @desc    Send message to artist
-// @access  Private
-router.post('/:artistId/contact', [
-    auth,
-    [
-        check('name', 'Name is required').not().isEmpty(),
-        check('email', 'Please include a valid email').isEmail(),
-        check('message', 'Message is required').not().isEmpty()
-    ]
-], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
-    
+// POST /api/artists/:id/contact - Send message to artist
+router.post('/artists/:id/contact', async (req, res) => {
+  try {
     const { name, email, message } = req.body;
-    
-    try {
-        // Check if artist exists
-        const artist = await Artist.findById(req.params.artistId);
-        if (!artist) {
-            return res.status(404).json({ msg: 'Artist not found' });
-        }
-        
-        const contact = new Contact({
-            artistId: req.params.artistId,
-            fromUserId: req.user.id,
-            name,
-            email,
-            message
-        });
-        
-        await contact.save();
-        
-        // Here you could add email notification logic
-        // sendEmailNotification(artist.email, contact);
-        
-        res.json({ msg: 'Message sent successfully' });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
+
+    const newContact = new Contact({
+      artist: req.params.id,
+      name,
+      email,
+      message
+    });
+
+    await newContact.save();
+
+    res.json({ success: true, message: 'Message sent successfully' });
+  } catch (error) {
+    console.error('Error sending message:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
-// @route   GET /api/artists/:artistId/contacts
-// @desc    Get all contact messages for artist
-// @access  Private (Artist owner only)
-router.get('/:artistId/contacts', [
-    auth,
-    checkArtistRole,
-    checkArtistOwnership
-], async (req, res) => {
-    try {
-        const contacts = await Contact.find({ artistId: req.params.artistId })
-            .populate('fromUserId', 'name email')
-            .sort({ createdAt: -1 });
-        
-        res.json(contacts);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+// GET /api/artists/:id/owner - Check if user owns this artist profile
+router.get('/artists/:id/owner', authenticateToken, async (req, res) => {
+  try {
+    const artist = await Artist.findById(req.params.id);
+    if (!artist) {
+      return res.json({ isOwner: false });
     }
+    res.json({ isOwner: artist.user.toString() === req.user.id });
+  } catch (error) {
+    res.json({ isOwner: false });
+  }
 });
 
-// @route   DELETE /api/artists/:id
-// @desc    Delete artist profile (deactivate)
-// @access  Private (Artist owner only)
-router.delete('/:id', [
-    auth,
-    checkArtistRole,
-    checkArtistOwnership
-], async (req, res) => {
-    try {
-        // Soft delete - just deactivate
-        await Artist.findByIdAndUpdate(
-            req.params.id,
-            { isActive: false }
-        );
-        
-        res.json({ msg: 'Artist profile deactivated' });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
+// GET /api/users/:id/roles - Get user roles
+router.get('/users/:id/roles', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.json([]);
+    res.json(user.roles || []);
+  } catch (error) {
+    res.json([]);
+  }
 });
 
 module.exports = router;

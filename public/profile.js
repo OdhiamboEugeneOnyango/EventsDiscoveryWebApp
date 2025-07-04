@@ -3,130 +3,86 @@
 // API Base URL
 const API_BASE_URL = 'http://localhost:3000/api';
 
-// Authentication utility functions
+// profile.js (frontend)
+let authToken = localStorage.getItem('authToken');
+
+async function checkAuth() {
+  if (!authToken) {
+    // Redirect to login if no token
+    window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+    return false;
+  }
+
+  try {
+    // Verify token with backend
+    const response = await fetch('/api/auth/verify', {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    
+    if (!response.ok) {
+      localStorage.removeItem('authToken');
+      window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    localStorage.removeItem('authToken');
+    window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+    return false;
+  }
+}
+
+async function loadProfile() {
+  try {
+    const response = await fetch('/api/auth/profile', {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    
+    const data = await response.json();
+    
+    // Set the current role in your UI
+    const defaultRole = data.user.roles.includes('organizer') ? 'organizer' : 
+                       data.user.roles.includes('artist') ? 'artist' : 'user';
+    setCurrentRole(defaultRole);
+    
+    // Render profile with all data
+    renderProfile(data.user, data.artistData, data.organizerData);
+  } catch (error) {
+    console.error('Failed to load profile:', error);
+  }
+}
+
+// Login form handler
+async function handleLogin(event) {
+  event.preventDefault();
+  
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  
+  try {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    
+    if (!response.ok) throw new Error('Login failed');
+    
+    const data = await response.json();
+    localStorage.setItem('authToken', data.token);
+    
+    // Redirect to original URL or profile page
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirectUrl = urlParams.get('redirect') || '/profile.html';
+    window.location.href = redirectUrl;
+  } catch (error) {
+    showLoginError(error.message);
+  }
+}
+// Utility function to get auth token
 function getAuthToken() {
-    return localStorage.getItem('eventhub_token');
-}
-
-function isAuthenticated() {
-    const token = getAuthToken();
-    if (!token) return false;
-    
-    try {
-        // Check if token is expired (basic check)
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const now = Date.now() / 1000;
-        return payload.exp > now;
-    } catch (error) {
-        console.error('Token validation error:', error);
-        return false;
-    }
-}
-
-function logout() {
-    localStorage.removeItem('eventhub_token');
-    localStorage.removeItem('eventhub_remember');
-    sessionStorage.removeItem('eventhub_user');
-    window.location.href = 'login.html';
-}
-
-// Sample data for demonstration
-const userEvents = [
-    {
-        id: 1,
-        title: "Jazz Night at the Rooftop",
-        date: "2025-06-15",
-        location: "Nairobi",
-        status: "upcoming",
-        icon: "🎵"
-    },
-    {
-        id: 2,
-        title: "Tech Conference 2025",
-        date: "2025-05-20",
-        location: "Nairobi",
-        status: "attended",
-        icon: "💻"
-    },
-    {
-        id: 3,
-        title: "Food Festival Weekend",
-        date: "2025-07-10",
-        location: "Mombasa",
-        status: "interested",
-        icon: "🍽️"
-    },
-    {
-        id: 4,
-        title: "Art Gallery Opening",
-        date: "2025-04-15",
-        location: "Nairobi",
-        status: "attended",
-        icon: "🎨"
-    }
-];
-
-// Fixed preferences array - matches backend enum exactly
-const preferences = [
-    { id: 'music', name: 'Music & Concerts', icon: '🎵', selected: true },
-    { id: 'sports', name: 'Sports & Fitness', icon: '⚽', selected: false },
-    { id: 'arts', name: 'Arts & Culture', icon: '🎨', selected: true },
-    { id: 'food', name: 'Food & Drink', icon: '🍽️', selected: true },
-    { id: 'tech', name: 'Technology', icon: '💻', selected: true },
-    { id: 'business', name: 'Business', icon: '💼', selected: false },
-    { id: 'health', name: 'Health & Wellness', icon: '🧘', selected: false },
-    { id: 'education', name: 'Education', icon: '📚', selected: false }
-];
-
-// Valid locations that match backend enum exactly
-const validLocations = ['nairobi', 'mombasa', 'kisumu', 'nakuru', 'eldoret', 'thika', 'other'];
-
-// Initialize profile page
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Profile page initializing...');
-    
-    // Check authentication first
-    if (!isAuthenticated()) {
-        console.log('User not authenticated, redirecting to login');
-        showNotification('Please log in to access this page', 'error');
-        setTimeout(() => {
-            window.location.href = 'login.html';
-        }, 2000);
-        return;
-    }
-    
-    console.log('User authenticated, loading profile...');
-    
-    // Load user profile
-    loadUserProfile();
-    
-    // Initialize form handlers
-    initializeProfileForm();
-    
-    // Initialize preferences
-    initializePreferences();
-    
-    // Load default tab content
-    showTab('profile');
-});
-
-// Load user profile data
-async function loadUserProfile() {
-    console.log('Loading user profile...');
-    
-    try {
-        const user = await getCurrentUser();
-        if (user) {
-            console.log('User data loaded:', user);
-            populateUserProfile(user);
-        } else {
-            console.log('Failed to load user data');
-            showNotification('Failed to load profile data', 'error');
-        }
-    } catch (error) {
-        console.error('Error loading profile:', error);
-        showNotification('Error loading profile data. Please refresh the page.', 'error');
-    }
+    return localStorage.getItem('eventhub_token') || sessionStorage.getItem('eventhub_token');
 }
 
 // Get current user from API with proper error handling
@@ -185,68 +141,33 @@ async function getCurrentUser() {
     }
 }
 
-// Populate user profile in UI
-function populateUserProfile(user) {
-    console.log('Populating UI with user data:', user);
+// Enhanced populateUserProfile with role-based support
+function populateUserProfile(user, artistData = null, organizerData = null) {
+    console.log('Populating UI with user data:', { user, artistData, organizerData });
     
     try {
         // Update header information
-        const userName = document.getElementById('userName');
-        const userEmail = document.getElementById('userEmail');
-        const userLocation = document.getElementById('userLocation');
+        updateProfileHeader(user);
         
-        if (userName) {
-            userName.textContent = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User';
-        }
+        // Update stats
+        updateProfileStats(user);
         
-        if (userEmail) {
-            userEmail.textContent = user.email || '';
-        }
+        // Populate base profile form fields
+        populateBaseProfileFields(user);
         
-        if (userLocation) {
-            // Capitalize location for display
-            const displayLocation = user.location ? 
-                user.location.charAt(0).toUpperCase() + user.location.slice(1) : 'Not specified';
-            userLocation.textContent = `📍 ${displayLocation}`;
-        }
+        // Populate role-specific fields based on current role
+        const currentRole = getCurrentRole();
         
-        // Update stats (these would come from API in real implementation)
-        const eventsAttended = document.getElementById('eventsAttended');
-        const eventsInterested = document.getElementById('eventsInterested');
-        const reviewsWritten = document.getElementById('reviewsWritten');
-        
-        if (eventsAttended) eventsAttended.textContent = user.eventsAttended || '0';
-        if (eventsInterested) eventsInterested.textContent = user.eventsInterested || '0';
-        if (reviewsWritten) reviewsWritten.textContent = user.reviewsWritten || '0';
-        
-        // Populate form fields - EMAIL IS NOW EDITABLE
-        const formFields = {
-            'firstName': user.firstName || '',
-            'lastName': user.lastName || '',
-            'email': user.email || '', // Now editable
-            'phone': user.phone || '',
-            'location': user.location || '',
-            'role': user.role || 'user', // Default to 'user' if not set
-            'interests': user.interests || [],
-            'dateOfBirth': user.dateOfBirth || '',
-            'bio': user.bio || ''
-        };
-        
-        Object.keys(formFields).forEach(fieldId => {
-            const field = document.getElementById(fieldId);
-            if (field) {
-                field.value = formFields[fieldId];
-                // Remove readonly restriction from email field
-                field.readOnly = false;
-                field.style.backgroundColor = '';
-                field.style.cursor = '';
-            }
-        });
-        
-        // Update newsletter checkbox
-        const newsletterCheckbox = document.getElementById('newsletter');
-        if (newsletterCheckbox) {
-            newsletterCheckbox.checked = user.newsletter || false;
+        switch(currentRole) {
+            case 'artist':
+                if (artistData) populateArtistFields(artistData);
+                break;
+            case 'organizer':
+                if (organizerData) populateOrganizerFields(organizerData);
+                break;
+            case 'admin':
+                // Admin-specific fields could be added here
+                break;
         }
         
         // Update preferences if available
@@ -255,12 +176,127 @@ function populateUserProfile(user) {
             renderPreferences();
         }
         
-        console.log('UI populated successfully');
+        console.log('UI populated successfully with role:', currentRole);
         
     } catch (error) {
         console.error('Error populating UI:', error);
         showNotification('Error displaying profile data', 'error');
     }
+}
+
+// Helper functions for modularity:
+
+function updateProfileHeader(user) {
+    const userName = document.getElementById('userName');
+    const userEmail = document.getElementById('userEmail');
+    const userLocation = document.getElementById('userLocation');
+    
+    if (userName) {
+        userName.textContent = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User';
+    }
+    
+    if (userEmail) {
+        userEmail.textContent = user.email || '';
+    }
+    
+    if (userLocation) {
+        const displayLocation = user.location ? 
+            user.location.charAt(0).toUpperCase() + user.location.slice(1) : 'Not specified';
+        userLocation.textContent = `📍 ${displayLocation}`;
+    }
+}
+
+function updateProfileStats(user) {
+    const stats = {
+        'eventsAttended': user.eventsAttended || '0',
+        'eventsInterested': user.eventsInterested || '0',
+        'reviewsWritten': user.reviewsWritten || '0'
+    };
+    
+    Object.entries(stats).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+    });
+}
+
+function populateBaseProfileFields(user) {
+    const formFields = {
+        'firstName': user.firstName || '',
+        'lastName': user.lastName || '',
+        'email': user.email || '',
+        'phone': user.phone || '',
+        'location': user.location || '',
+        'role': user.roles?.[0] || 'user', // Use first role if available
+        'dateOfBirth': formatDateForInput(user.dateOfBirth) || '',
+        'bio': user.bio || '',
+        'newsletter': user.newsletter || false
+    };
+    
+    Object.entries(formFields).forEach(([fieldId, value]) => {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+        
+        if (field.type === 'checkbox') {
+            field.checked = value;
+        } else {
+            field.value = value;
+            // Make email field editable but with visual distinction
+            if (fieldId === 'email') {
+                field.readOnly = false;
+                field.style.backgroundColor = '#f8f8f8';
+                field.style.border = '1px solid #ddd';
+            }
+        }
+    });
+}
+
+function populateArtistFields(artistData) {
+    const artistFields = {
+        'artistStageName': artistData.name || '',
+        'artistBio': artistData.bio || '',
+        'artistGenre': artistData.genre || 'other',
+        'artistFacebook': artistData.social?.facebook || '',
+        'artistInstagram': artistData.social?.instagram || '',
+        'artistTwitter': artistData.social?.twitter || '',
+        'artistYouTube': artistData.social?.youtube || '',
+        'artistMinFee': artistData.minFee || '',
+        'artistTravel': artistData.travelPreference || 'locally'
+    };
+    
+    Object.entries(artistFields).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) element.value = value;
+    });
+}
+
+function populateOrganizerFields(organizerData) {
+    const organizerFields = {
+        'orgName': organizerData.organizationName || '',
+        'orgDescription': organizerData.description || '',
+        'orgContactEmail': organizerData.contactEmail || '',
+        'orgContactPhone': organizerData.contactPhone || '',
+        'orgWebsite': organizerData.website || '',
+        'orgLogo': organizerData.logo || ''
+    };
+    
+    Object.entries(organizerFields).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) element.value = value;
+    });
+}
+
+// Utility function to format date for input[type=date]
+function formatDateForInput(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    return date.toISOString().split('T')[0];
+}
+
+// Helper function to get current role from UI
+function getCurrentRole() {
+    const roleSelect = document.getElementById('currentRole');
+    return roleSelect ? roleSelect.value : 'user';
 }
 
 // Update user preferences
@@ -325,8 +361,7 @@ function isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 }
-
-// Update user profile with proper error handling and email support
+// Enhanced profile update function with role-based support
 async function updateUserProfile() {
     console.log('Starting profile update...');
     
@@ -337,148 +372,247 @@ async function updateUserProfile() {
         return;
     }
     
-    // Get form data - NOW INCLUDING EMAIL
+    // Get base user form data
     const formData = {
         firstName: document.getElementById('firstName')?.value?.trim() || '',
         lastName: document.getElementById('lastName')?.value?.trim() || '',
-        email: document.getElementById('email')?.value?.trim() || '', // Email is now included
+        email: document.getElementById('email')?.value?.trim() || '',
         phone: document.getElementById('phone')?.value?.trim() || '',
         location: document.getElementById('location')?.value || '',
-        role: document.getElementById('role')?.value || 'user', // Default to 'user'
-        interests: preferences.filter(p => p.selected).map(p => p.id),                   
-        newsletter: document.getElementById('newsletter')?.checked || false
-
+        bio: document.getElementById('bio')?.value?.trim() || '',
+        dateOfBirth: document.getElementById('dateOfBirth')?.value || '',
+        newsletter: document.getElementById('newsletter')?.checked || false,
+        interests: getSelectedInterests() // Helper function to get selected interests
     };
+
+    // Get role-specific data based on current role
+    const currentRole = getCurrentRole(); // Should return 'user', 'organizer', 'artist', or 'admin'
     
-    // Include bio and dateOfBirth if they exist
-    const bioField = document.getElementById('bio');
-    const dobField = document.getElementById('dateOfBirth');
-    
-    if (bioField && bioField.value.trim()) {
-        formData.bio = bioField.value.trim();
+    // Prepare role-specific data objects
+    if (currentRole === 'artist') {
+        formData.artistData = {
+            stageName: document.getElementById('artistStageName')?.value?.trim() || '',
+            bio: document.getElementById('artistBio')?.value?.trim() || '',
+            genre: document.getElementById('artistGenre')?.value || '',
+            website: document.getElementById('artistWebsite')?.value?.trim() || '',
+            facebook: document.getElementById('artistFacebook')?.value?.trim() || '',
+            instagram: document.getElementById('artistInstagram')?.value?.trim() || '',
+            twitter: document.getElementById('artistTwitter')?.value?.trim() || '',
+            youtube: document.getElementById('artistYouTube')?.value?.trim() || '',
+            profileImage: document.getElementById('artistProfileImage')?.value?.trim() || '',
+            minFee: document.getElementById('artistMinFee')?.value || 0,
+            travelPreference: document.getElementById('artistTravel')?.value || 'locally'
+        };
+    } else if (currentRole === 'organizer') {
+        formData.organizerData = {
+            organizationName: document.getElementById('orgName')?.value?.trim() || '',
+            description: document.getElementById('orgDescription')?.value?.trim() || '',
+            contactEmail: document.getElementById('orgContactEmail')?.value?.trim() || '',
+            contactPhone: document.getElementById('orgContactPhone')?.value?.trim() || '',
+            website: document.getElementById('orgWebsite')?.value?.trim() || '',
+            logo: document.getElementById('orgLogo')?.value?.trim() || ''
+        };
     }
-    
-    if (dobField && dobField.value) {
-        formData.dateOfBirth = dobField.value;
-    }
-    
+
     console.log('=== DEBUG: Form data before validation ===');
-    console.log('firstName:', formData.firstName);
-    console.log('lastName:', formData.lastName);
-    console.log('email:', formData.email);
-    console.log('phone:', formData.phone);
-    console.log('location:', formData.location);
-    console.log('role:', formData.role);
-    console.log('interests:', formData.interests);
-    console.log('bio:', formData.bio);
-    console.log('newsletter:', formData.newsletter);
-    console.log('Full form data:', formData);
+    console.log('Base profile data:', formData);
+    if (currentRole === 'artist') console.log('Artist data:', formData.artistData);
+    if (currentRole === 'organizer') console.log('Organizer data:', formData.organizerData);
     
-    // Enhanced validation with email
-    if (!formData.firstName || !formData.lastName) {
-        showNotification('First name and last name are required', 'error');
+    // Enhanced validation
+    const validationErrors = validateProfileData(formData, currentRole);
+    if (validationErrors.length > 0) {
+        validationErrors.forEach(error => showNotification(error, 'error'));
         return;
     }
-    
-    if (formData.firstName.length < 2 || formData.lastName.length < 2) {
-        showNotification('First name and last name must be at least 2 characters long', 'error');
-        return;
-    }
-    
-    if (!formData.email) {
-        showNotification('Email address is required', 'error');
-        return;
-    }
-    
-    if (!isValidEmail(formData.email)) {
-        showNotification('Please enter a valid email address', 'error');
-        return;
-    }
-    
-    if (!formData.phone) {
-        showNotification('Phone number is required', 'error');
-        return;
-    }
-    
-    if (!formData.location) {
-        showNotification('Location is required', 'error');
-        return;
-    }
-    if (!formData.role) {
-        showNotification('Role is required', 'error');
-        return;
-    }
-
-    if (formData.interests.length === 0) {
-        showNotification('Please select at least one interest', 'error');
-        return;
-    }
-
-    if (formData.bio && formData.bio.length > 500) {
-        showNotification('Bio must be less than 500 characters', 'error');
-        return;
-    }
-
-    if (formData.dateOfBirth && isNaN(new Date(formData.dateOfBirth).getTime())) {
-        showNotification('Please enter a valid date of birth', 'error');
-        return;
-    }
-
-    
-    // Validate phone format
-    const phoneRegex = /^(\+254|0)[17]\d{8}$/;
-    if (!phoneRegex.test(formData.phone)) {
-        showNotification('Please enter a valid Kenyan phone number (e.g., +254712345678 or 0712345678)', 'error');
-        return;
-    }
-    
-    // Validate location
-    if (!validLocations.includes(formData.location.toLowerCase())) {
-        showNotification('Please select a valid location', 'error');
-        return;
-    }
-    // Validate role
-    const validRoles = ['user', 'organizer', 'artist', 'admin'];
-    if (!validRoles.includes(formData.role)) {
-        showNotification('Please select a valid account type', 'error');
-        return;
-    }
-    
-    // Convert location to lowercase for backend
-    formData.location = formData.location.toLowerCase();
-    
-    console.log('=== DEBUG: Form data after validation ===');
-    console.log('Validated form data:', formData);
     
     // Show loading state
-    const submitBtn = document.querySelector('#profileForm button[type="submit"]');
-    if (!submitBtn) {
-        console.error('Submit button not found');
-        return;
+    const submitBtn = document.querySelector('#profileForm button[type="submit"]') || 
+                     document.querySelector(`#${currentRole}Tab button[type="button"]`);
+    const originalText = submitBtn?.textContent;
+    if (submitBtn) {
+        submitBtn.textContent = '💾 Saving...';
+        submitBtn.disabled = true;
     }
     
-    const originalText = submitBtn.textContent;
-    submitBtn.textContent = '💾 Saving...';
-    submitBtn.disabled = true;
-    
     try {
-        const updatedUser = await updateProfile(formData);
+        // Send the update request
+        const response = await fetch('/api/auth/profile', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            },
+            body: JSON.stringify(formData)
+        });
         
-        if (updatedUser) {
-            // Update UI with new data
-            populateUserProfile(updatedUser);
-            showNotification('Profile updated successfully!', 'success');
-            console.log('Profile updated successfully');
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to update profile');
         }
+        
+        const data = await response.json();
+        
+        // Update UI with new data
+        updateProfileUI(data.user, data.artistData, data.organizerData);
+        showNotification('Profile updated successfully!', 'success');
+        console.log('Profile updated successfully:', data);
         
     } catch (error) {
         console.error('Profile update error:', error);
         showNotification(error.message || 'Failed to update profile. Please try again.', 'error');
     } finally {
         // Reset button state
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
+        if (submitBtn) {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }
     }
+}
+
+// Helper function to validate profile data
+function validateProfileData(formData, currentRole) {
+    const errors = [];
+    const validLocations = ['nairobi', 'mombasa', 'kisumu', 'nakuru', 'eldoret', 'thika', 'other'];
+    const phoneRegex = /^(\+254|0)[17]\d{8}$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    // Base profile validation
+    if (!formData.firstName || !formData.lastName) {
+        errors.push('First name and last name are required');
+    } else if (formData.firstName.length < 2 || formData.lastName.length < 2) {
+        errors.push('First name and last name must be at least 2 characters long');
+    }
+
+    if (!formData.email) {
+        errors.push('Email address is required');
+    } else if (!emailRegex.test(formData.email)) {
+        errors.push('Please enter a valid email address');
+    }
+
+    if (!formData.phone) {
+        errors.push('Phone number is required');
+    } else if (!phoneRegex.test(formData.phone)) {
+        errors.push('Please enter a valid Kenyan phone number (e.g., +254712345678 or 0712345678)');
+    }
+
+    if (!formData.location) {
+        errors.push('Location is required');
+    } else if (!validLocations.includes(formData.location.toLowerCase())) {
+        errors.push('Please select a valid location');
+    }
+
+    if (formData.bio && formData.bio.length > 500) {
+        errors.push('Bio must be less than 500 characters');
+    }
+
+    // Role-specific validation
+    if (currentRole === 'artist') {
+        if (!formData.artistData.stageName) {
+            errors.push('Stage name is required for artists');
+        }
+        if (!formData.artistData.genre) {
+            errors.push('Genre is required for artists');
+        }
+    }
+
+    if (currentRole === 'organizer') {
+        if (!formData.organizerData.organizationName) {
+            errors.push('Organization name is required for organizers');
+        }
+        if (!formData.organizerData.contactEmail) {
+            errors.push('Contact email is required for organizers');
+        }
+        if (!formData.organizerData.contactPhone) {
+            errors.push('Contact phone is required for organizers');
+        }
+    }
+
+    return errors;
+}
+
+// Helper function to update UI after successful update
+function updateProfileUI(userData, artistData, organizerData) {
+    // Update base profile fields
+    if (userData.firstName) document.getElementById('userName').textContent = `${userData.firstName} ${userData.lastName}`;
+    if (userData.email) document.getElementById('userEmail').textContent = userData.email;
+    if (userData.location) document.getElementById('userLocation').textContent = `📍 ${userData.location}`;
+    
+    // Update form fields
+    const fieldsToUpdate = {
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email,
+        phone: userData.phone,
+        location: userData.location,
+        bio: userData.bio,
+        dateOfBirth: userData.dateOfBirth,
+        newsletter: userData.newsletter
+    };
+    
+    Object.entries(fieldsToUpdate).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) {
+            if (element.type === 'checkbox') {
+                element.checked = value;
+            } else {
+                element.value = value || '';
+            }
+        }
+    });
+    
+    // Update role-specific UI
+    const currentRole = getCurrentRole();
+    if (currentRole === 'artist' && artistData) {
+        const artistFields = {
+            artistStageName: artistData.stageName,
+            artistBio: artistData.bio,
+            artistGenre: artistData.genre,
+            artistWebsite: artistData.website,
+            artistFacebook: artistData.facebook,
+            artistInstagram: artistData.instagram,
+            artistTwitter: artistData.twitter,
+            artistYouTube: artistData.youtube,
+            artistProfileImage: artistData.profileImage,
+            artistMinFee: artistData.minFee,
+            artistTravel: artistData.travelPreference
+        };
+        
+        Object.entries(artistFields).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) element.value = value || '';
+        });
+    }
+    
+    if (currentRole === 'organizer' && organizerData) {
+        const organizerFields = {
+            orgName: organizerData.organizationName,
+            orgDescription: organizerData.description,
+            orgContactEmail: organizerData.contactEmail,
+            orgContactPhone: organizerData.contactPhone,
+            orgWebsite: organizerData.website,
+            orgLogo: organizerData.logo
+        };
+        
+        Object.entries(organizerFields).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) element.value = value || '';
+        });
+    }
+    
+    // Update stats and other UI elements as needed
+    updateProfileStats(userData, artistData, organizerData);
+}
+
+// Helper function to get selected interests
+function getSelectedInterests() {
+    return Array.from(document.querySelectorAll('.interest-checkbox:checked')).map(el => el.value);
+}
+
+// Helper function to get current role
+function getCurrentRole() {
+    const roleSelect = document.getElementById('currentRole');
+    return roleSelect ? roleSelect.value : 'user';
 }
 
 // Update profile API call with proper authentication and error handling
@@ -1159,3 +1293,103 @@ function closeModal() {
         modal.remove();
     }
 }
+
+        // Current role state
+        let currentRole = 'user';
+        
+        // Initialize the profile view
+        function initProfile() {
+            // Load the user's roles from the server
+            // For demo purposes, we'll assume the user has all roles
+            const userRoles = ['user', 'organizer', 'artist', 'admin'];
+            
+            // Populate the role selector
+            const roleSelect = document.getElementById('currentRole');
+            roleSelect.innerHTML = '';
+            
+            userRoles.forEach(role => {
+                const option = document.createElement('option');
+                option.value = role;
+                option.textContent = getRoleDisplayName(role);
+                roleSelect.appendChild(option);
+            });
+            
+            // Set the initial role
+            switchRole(currentRole);
+        }
+        
+        // Switch between different role profiles
+        function switchRole(role) {
+            currentRole = role;
+            
+            // Update the profile header
+            const profileHeader = document.getElementById('profileHeader');
+            const templateId = `${role}ProfileTemplate`;
+            const template = document.getElementById(templateId);
+            profileHeader.innerHTML = '';
+            profileHeader.appendChild(template.content.cloneNode(true));
+            
+            // Update the tabs
+            const tabNav = document.getElementById('tabNav');
+            const tabTemplateId = `${role}TabsTemplate`;
+            const tabTemplate = document.getElementById(tabTemplateId);
+            tabNav.innerHTML = '';
+            tabNav.appendChild(tabTemplate.content.cloneNode(true));
+            
+            // Update the tab contents
+            const tabContents = document.getElementById('tabContents');
+            const contentTemplateId = `${role}TabContentsTemplate`;
+            const contentTemplate = document.getElementById(contentTemplateId);
+            tabContents.innerHTML = '';
+            tabContents.appendChild(contentTemplate.content.cloneNode(true));
+            
+            // Load role-specific data
+            loadRoleData(role);
+        }
+        
+        // Get display name for a role
+        function getRoleDisplayName(role) {
+            switch(role) {
+                case 'user': return 'Event Attendee';
+                case 'organizer': return 'Event Organizer';
+                case 'artist': return 'Artist/Performer';
+                case 'admin': return 'Administrator';
+                default: return role;
+            }
+        }
+        
+        // Load data specific to the current role
+        function loadRoleData(role) {
+            // In a real app, this would fetch data from the server
+            console.log(`Loading data for ${role} role`);
+            
+            // Simulate loading data
+            setTimeout(() => {
+                // Update profile stats based on role
+                if (role === 'user') {
+                    document.getElementById('eventsAttended').textContent = '12';
+                    document.getElementById('eventsInterested').textContent = '5';
+                    document.getElementById('reviewsWritten').textContent = '8';
+                } else if (role === 'organizer') {
+                    document.getElementById('eventsOrganized').textContent = '7';
+                    document.getElementById('totalAttendees').textContent = '1,245';
+                    document.getElementById('orgRating').textContent = '4.2';
+                } else if (role === 'artist') {
+                    document.getElementById('performances').textContent = '32';
+                    document.getElementById('merchItems').textContent = '5';
+                    document.getElementById('artistRating').textContent = '4.7';
+                } else if (role === 'admin') {
+                    document.getElementById('totalUsers').textContent = '1,542';
+                    document.getElementById('totalEvents').textContent = '287';
+                    document.getElementById('reports').textContent = '12';
+                }
+            }, 500);
+        }
+        
+        // Initialize when the page loads
+        window.onload = initProfile;
+   
+document.getElementById('profileForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    updateUserProfile();
+});

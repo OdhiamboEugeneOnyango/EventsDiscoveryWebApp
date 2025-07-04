@@ -25,8 +25,35 @@
 
     <main>
         <div class="container">
-            <!-- Profile Header -->
-            <section class="profile-header">
+            <!-- Role Selection Dropdown -->
+            <div class="role-selector">
+                <label for="currentRole">Viewing Profile As:</label>
+                <select id="currentRole" onchange="switchRole(this.value)">
+                    <option value="user">Event Attendee</option>
+                    <option value="organizer">Event Organizer</option>
+                    <option value="artist">Artist/Performer</option>
+                    <option value="admin">Administrator</option>
+                </select>
+            </div>
+
+            <!-- Profile Header (Dynamic based on role) -->
+            <section class="profile-header" id="profileHeader">
+                <!-- Content will be dynamically loaded based on role -->
+            </section>
+
+            <!-- Tab Navigation (Dynamic based on role) -->
+            <nav class="tab-nav" id="tabNav">
+                <!-- Tabs will be dynamically loaded based on role -->
+            </nav>
+
+            <!-- Tab Contents (Dynamic based on role) -->
+            <div id="tabContents">
+                <!-- Content will be dynamically loaded based on role -->
+            </div>
+
+            <!-- Hidden Templates for Each Role -->
+            <!-- User Profile Template -->
+            <template id="userProfileTemplate">
                 <div class="profile-info">
                     <div class="profile-avatar" onclick="uploadAvatar()">
                         👤
@@ -52,197 +79,901 @@
                         </div>
                     </div>
                 </div>
-            </section>
+            </template>
 
-            <!-- Tab Navigation -->
-            <nav class="tab-nav">
+            <!-- Organizer Profile Template -->
+            <template id="organizerProfileTemplate">
+                <div class="profile-info">
+                    <div class="profile-avatar" onclick="uploadAvatar()">
+                        🏢
+                        <div class="avatar-upload">📷</div>
+                    </div>
+                    <div class="profile-details">
+                        <h1 id="orgName">Loading Organization...</h1>
+                        <p id="orgContact">Loading contact info...</p>
+                        <p id="orgWebsite">🌐 Loading website...</p>
+                        <div class="profile-stats">
+                            <div class="stat-item">
+                                <div class="stat-number" id="eventsOrganized">0</div>
+                                <div class="stat-label">Events Organized</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number" id="totalAttendees">0</div>
+                                <div class="stat-label">Total Attendees</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number" id="orgRating">0</div>
+                                <div class="stat-label">Average Rating</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Artist Profile Template -->
+            <template id="artistProfileTemplate">
+                <div class="profile-info">
+                    <div class="profile-avatar" onclick="uploadAvatar()">
+                        🎤
+                        <div class="avatar-upload">📷</div>
+                    </div>
+                    <div class="profile-details">
+                        <h1 id="artistName">Loading Artist...</h1>
+                        <p id="artistBio">Loading bio...</p>
+                        <div class="social-links">
+                            <a href="#" id="facebookLink">FB</a>
+                            <a href="#" id="instagramLink">IG</a>
+                            <a href="#" id="twitterLink">TW</a>
+                            <a href="#" id="youtubeLink">YT</a>
+                        </div>
+                        <div class="profile-stats">
+                            <div class="stat-item">
+                                <div class="stat-number" id="performances">0</div>
+                                <div class="stat-label">Performances</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number" id="merchItems">0</div>
+                                <div class="stat-label">Merch Items</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number" id="artistRating">0</div>
+                                <div class="stat-label">Average Rating</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Admin Profile Template -->
+            <template id="adminProfileTemplate">
+                <div class="profile-info">
+                    <div class="profile-avatar" onclick="uploadAvatar()">
+                        ⚙️
+                        <div class="avatar-upload">📷</div>
+                    </div>
+                    <div class="profile-details">
+                        <h1 id="adminName">Loading Admin...</h1>
+                        <p id="adminEmail">Loading email...</p>
+                        <p id="adminSince">Admin since: Loading...</p>
+                        <div class="profile-stats">
+                            <div class="stat-item">
+                                <div class="stat-number" id="totalUsers">0</div>
+                                <div class="stat-label">Users</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number" id="totalEvents">0</div>
+                                <div class="stat-label">Events</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number" id="reports">0</div>
+                                <div class="stat-label">Reports</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- User Tabs Template -->
+            <template id="userTabsTemplate">
                 <button class="tab-btn active" onclick="showTab('profile')">👤 Profile</button>
                 <button class="tab-btn" onclick="showTab('events')">🎫 My Events</button>
                 <button class="tab-btn" onclick="showTab('preferences')">⚙️ Preferences</button>
                 <button class="tab-btn" onclick="showTab('privacy')">🔒 Privacy</button>
                 <button class="tab-btn" onclick="showTab('security')">🛡️ Security</button>
-            </nav>
+            </template>
 
-            <!-- Profile Information Tab -->
-            <div id="profileTab" class="tab-content active">
-                <h2>Profile Information</h2>
-                <form id="profileForm">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="firstName">First Name *</label>
-                            <input type="text" id="firstName" name="firstName" required minlength="2">
+            <!-- Organizer Tabs Template -->
+            <template id="organizerTabsTemplate">
+                <button class="tab-btn active" onclick="showTab('orgProfile')">🏢 Organization</button>
+                <button class="tab-btn" onclick="showTab('orgEvents')">📅 My Events</button>
+                <button class="tab-btn" onclick="showTab('orgAnalytics')">📊 Analytics</button>
+                <button class="tab-btn" onclick="showTab('orgSettings')">⚙️ Settings</button>
+                <button class="tab-btn" onclick="showTab('orgPayments')">💰 Payments</button>
+            </template>
+
+            <!-- Artist Tabs Template -->
+            <template id="artistTabsTemplate">
+                <button class="tab-btn active" onclick="showTab('artistProfile')">🎤 Profile</button>
+                <button class="tab-btn" onclick="showTab('artistShows')">🎭 Upcoming Shows</button>
+                <button class="tab-btn" onclick="showTab('artistMerch')">👕 Merchandise</button>
+                <button class="tab-btn" onclick="showTab('artistGallery')">🖼️ Gallery</button>
+                <button class="tab-btn" onclick="showTab('artistSettings')">⚙️ Settings</button>
+            </template>
+
+            <!-- Admin Tabs Template -->
+            <template id="adminTabsTemplate">
+                <button class="tab-btn active" onclick="showTab('adminDashboard')">📊 Dashboard</button>
+                <button class="tab-btn" onclick="showTab('adminUsers')">👥 Users</button>
+                <button class="tab-btn" onclick="showTab('adminEvents')">🎫 Events</button>
+                <button class="tab-btn" onclick="showTab('adminReports')">⚠️ Reports</button>
+                <button class="tab-btn" onclick="showTab('adminSettings')">⚙️ Settings</button>
+            </template>
+
+            <!-- User Tab Contents Template -->
+            <template id="userTabContentsTemplate">
+                <!-- Profile Information Tab -->
+                <div id="profileTab" class="tab-content active">
+                    <h2>Profile Information</h2>
+                    <form id="profileForm">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="firstName">First Name *</label>
+                                <input type="text" id="firstName" name="firstName" required minlength="2">
+                            </div>
+                            <div class="form-group">
+                                <label for="lastName">Last Name *</label>
+                                <input type="text" id="lastName" name="lastName" required minlength="2">
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email *</label>
+                                <input type="email" id="email" name="email" required readonly>
+                                <small class="help-text">Email cannot be changed for security reasons</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Phone Number *</label>
+                                <input type="tel" id="phone" name="phone" required placeholder="+254712345678 or 0712345678">
+                            </div>
+                            <div class="form-group">
+                                <label for="location">Location *</label>
+                                <select id="location" name="location" required>
+                                    <option value="">Select a location</option>
+                                    <option value="nairobi">Nairobi</option>
+                                    <option value="mombasa">Mombasa</option>
+                                    <option value="kisumu">Kisumu</option>
+                                    <option value="nakuru">Nakuru</option>
+                                    <option value="eldoret">Eldoret</option>
+                                    <option value="thika">Thika</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="dateOfBirth">Date of Birth</label>
+                                <input type="date" id="dateOfBirth" name="dateOfBirth">
+                            </div>
                         </div>
                         <div class="form-group">
-                            <label for="lastName">Last Name *</label>
-                            <input type="text" id="lastName" name="lastName" required minlength="2">
+                            <label for="bio">Bio</label>
+                            <textarea id="bio" name="bio" rows="4" placeholder="Tell us about yourself..."></textarea>
                         </div>
                         <div class="form-group">
-                            <label for="email">Email *</label>
-                            <input type="email" id="email" name="email" required readonly>
-                            <small class="help-text">Email cannot be changed for security reasons</small>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="newsletter" name="newsletter">
+                                <span class="checkmark"></span>
+                                Subscribe to newsletter
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+                    </form>
+                </div>
+
+                <!-- My Events Tab -->
+                <div id="eventsTab" class="tab-content">
+                    <h2>My Events</h2>
+                    <div class="event-filters">
+                        <button id="filterAll" class="btn btn-primary" onclick="filterEvents('all')">All</button>
+                        <button id="filterUpcoming" class="btn btn-secondary" onclick="filterEvents('upcoming')">Upcoming</button>
+                        <button id="filterAttended" class="btn btn-secondary" onclick="filterEvents('attended')">Attended</button>
+                        <button id="filterInterested" class="btn btn-secondary" onclick="filterEvents('interested')">Interested</button>
+                    </div>
+                    <div id="eventsContainer" class="events-container">
+                        <!-- Events will be loaded here by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Preferences Tab -->
+                <div id="preferencesTab" class="tab-content">
+                    <h2>Event Preferences</h2>
+                    <p>Select your interests to get personalized event recommendations:</p>
+                    <div id="preferencesContainer" class="preferences-container">
+                        <!-- Preferences will be loaded here by JavaScript -->
+                    </div>
+                    <button class="btn btn-primary" onclick="updateUserProfile()">💾 Save Preferences</button>
+                </div>
+
+                <!-- Privacy Settings Tab -->
+                <div id="privacyTab" class="tab-content">
+                    <h2>Privacy Settings</h2>
+                    <div class="privacy-section">
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <label>Make my profile public</label>
+                        </div>
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch active" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <label>Show my attended events</label>
+                        </div>
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <label>Allow others to find me by email</label>
+                        </div>
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch active" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <label>Receive event recommendations</label>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="savePrivacySettings()">💾 Save Privacy Settings</button>
+                </div>
+
+                <!-- Security Tab -->
+                <div id="securityTab" class="tab-content">
+                    <h2>Security Settings</h2>
+                    <div class="security-section">
+                        <div class="security-item">
+                            <div class="security-info">
+                                <h4>Password</h4>
+                                <p>Change your account password</p>
+                            </div>
+                            <button class="btn btn-secondary" onclick="changePassword()">Change Password</button>
+                        </div>
+                        
+                        <div class="security-item">
+                            <div class="security-info">
+                                <h4>Two-Factor Authentication</h4>
+                                <p>Add an extra layer of security to your account</p>
+                            </div>
+                            <button class="btn btn-secondary" onclick="setup2FA()">Enable 2FA</button>
+                        </div>
+                        
+                        <div class="security-item">
+                            <div class="security-info">
+                                <h4>Active Sessions</h4>
+                                <p>Manage your active login sessions</p>
+                            </div>
+                            <button class="btn btn-secondary" onclick="manageSessions()">Manage Sessions</button>
+                        </div>
+                        
+                        <div class="security-item">
+                            <div class="security-info">
+                                <h4>Download Your Data</h4>
+                                <p>Download a copy of your account data</p>
+                            </div>
+                            <button class="btn btn-secondary" onclick="downloadData()">Download Data</button>
+                        </div>
+                        
+                        <div class="security-item">
+                            <div class="security-info">
+                                <h4>Delete Account</h4>
+                                <p>Permanently delete your account and all data</p>
+                            </div>
+                            <button class="btn btn-danger" onclick="deleteAccount()">Delete Account</button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Organizer Tab Contents Template -->
+            <template id="organizerTabContentsTemplate">
+                <!-- Organization Profile Tab -->
+                <div id="orgProfile" class="tab-content active">
+                    <h2>Organization Profile</h2>
+                    <form id="orgProfileForm">
+                        <div class="form-group">
+                            <label for="orgName">Organization Name *</label>
+                            <input type="text" id="orgName" name="orgName" required>
                         </div>
                         <div class="form-group">
-                            <label for="role">Account Type *</label>
-                            <select id="role" name="role" required>
-                                <option value="">Select account type</option>
-                                <option value="user">Event Attendee</option>
-                                <option value="organizer">Event Organizer</option>
-                                <option value="artist">Artist/Performer</option>
-                                <option value="admin">Administrator</option>
-                            </select>
-                             <small class="help-text">Your account type determines what features you can access</small>
+                            <label for="orgDescription">Description</label>
+                            <textarea id="orgDescription" name="orgDescription" rows="4"></textarea>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="orgContactEmail">Contact Email *</label>
+                                <input type="email" id="orgContactEmail" name="orgContactEmail" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="orgContactPhone">Contact Phone *</label>
+                                <input type="tel" id="orgContactPhone" name="orgContactPhone" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="orgWebsite">Website</label>
+                                <input type="url" id="orgWebsite" name="orgWebsite">
+                            </div>
+                            <div class="form-group">
+                                <label for="orgLocation">Location</label>
+                                <select id="orgLocation" name="orgLocation">
+                                    <option value="nairobi">Nairobi</option>
+                                    <option value="mombasa">Mombasa</option>
+                                    <option value="kisumu">Kisumu</option>
+                                    <option value="nakuru">Nakuru</option>
+                                    <option value="eldoret">Eldoret</option>
+                                    <option value="thika">Thika</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="form-group">
-                            <label for="phone">Phone Number *</label>
-                            <input type="tel" id="phone" name="phone" required placeholder="+254712345678 or 0712345678">
-                            
+                            <label for="orgLogo">Logo URL</label>
+                            <input type="url" id="orgLogo" name="orgLogo">
+                        </div>
+                        <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+                    </form>
+                </div>
+
+                <!-- My Events Tab -->
+                <div id="orgEvents" class="tab-content">
+                    <h2>My Events</h2>
+                    <button class="btn btn-primary" onclick="createNewEvent()">➕ Create New Event</button>
+                    <div class="event-filters">
+                        <button class="btn btn-primary" onclick="filterOrgEvents('all')">All</button>
+                        <button class="btn btn-secondary" onclick="filterOrgEvents('upcoming')">Upcoming</button>
+                        <button class="btn btn-secondary" onclick="filterOrgEvents('past')">Past</button>
+                        <button class="btn btn-secondary" onclick="filterOrgEvents('draft')">Drafts</button>
+                    </div>
+                    <div id="orgEventsContainer" class="events-container">
+                        <!-- Events will be loaded here by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Analytics Tab -->
+                <div id="orgAnalytics" class="tab-content">
+                    <h2>Organization Analytics</h2>
+                    <div class="analytics-grid">
+                        <div class="analytics-card">
+                            <h3>Total Events</h3>
+                            <div class="analytics-value" id="totalOrgEvents">0</div>
+                        </div>
+                        <div class="analytics-card">
+                            <h3>Total Attendees</h3>
+                            <div class="analytics-value" id="totalOrgAttendees">0</div>
+                        </div>
+                        <div class="analytics-card">
+                            <h3>Revenue</h3>
+                            <div class="analytics-value" id="totalOrgRevenue">KES 0</div>
+                        </div>
+                        <div class="analytics-card">
+                            <h3>Average Rating</h3>
+                            <div class="analytics-value" id="orgAvgRating">0.0</div>
+                        </div>
+                    </div>
+                    <div class="analytics-charts">
+                        <canvas id="attendanceChart"></canvas>
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div id="orgSettings" class="tab-content">
+                    <h2>Organization Settings</h2>
+                    <div class="settings-section">
+                        <h3>Notification Preferences</h3>
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch active" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <label>Event registration notifications</label>
+                        </div>
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch active" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <label>Ticket sales notifications</label>
+                        </div>
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <label>Marketing emails</label>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Team Members</h3>
+                        <div id="teamMembersList">
+                            <!-- Team members will be listed here -->
+                        </div>
+                        <button class="btn btn-secondary" onclick="addTeamMember()">➕ Add Team Member</button>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveOrgSettings()">💾 Save Settings</button>
+                </div>
+
+                <!-- Payments Tab -->
+                <div id="orgPayments" class="tab-content">
+                    <h2>Payment Settings</h2>
+                    <div class="payment-methods">
+                        <h3>Payment Methods</h3>
+                        <div id="paymentMethodsList">
+                            <!-- Payment methods will be listed here -->
+                        </div>
+                        <button class="btn btn-secondary" onclick="addPaymentMethod()">➕ Add Payment Method</button>
+                    </div>
+                    <div class="payout-settings">
+                        <h3>Payout Settings</h3>
+                        <form id="payoutSettingsForm">
+                            <div class="form-group">
+                                <label for="payoutMethod">Payout Method *</label>
+                                <select id="payoutMethod" name="payoutMethod" required>
+                                    <option value="bank">Bank Transfer</option>
+                                    <option value="mpesa">M-Pesa</option>
+                                    <option value="paypal">PayPal</option>
+                                </select>
+                            </div>
+                            <div id="bankDetails" class="form-grid">
+                                <div class="form-group">
+                                    <label for="bankName">Bank Name *</label>
+                                    <input type="text" id="bankName" name="bankName">
+                                </div>
+                                <div class="form-group">
+                                    <label for="accountName">Account Name *</label>
+                                    <input type="text" id="accountName" name="accountName">
+                                </div>
+                                <div class="form-group">
+                                    <label for="accountNumber">Account Number *</label>
+                                    <input type="text" id="accountNumber" name="accountNumber">
+                                </div>
+                                <div class="form-group">
+                                    <label for="branchCode">Branch Code</label>
+                                    <input type="text" id="branchCode" name="branchCode">
+                                </div>
+                            </div>
+                            <div id="mpesaDetails" class="form-group" style="display: none;">
+                                <label for="mpesaNumber">M-Pesa Number *</label>
+                                <input type="tel" id="mpesaNumber" name="mpesaNumber">
+                            </div>
+                            <button type="submit" class="btn btn-primary">💾 Save Payout Settings</button>
+                        </form>
+                    </div>
+                    <div class="payout-history">
+                        <h3>Payout History</h3>
+                        <table id="payoutHistoryTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Payout history will be listed here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Artist Tab Contents Template -->
+            <template id="artistTabContentsTemplate">
+                <!-- Artist Profile Tab -->
+                <div id="artistProfile" class="tab-content active">
+                    <h2>Artist Profile</h2>
+                    <form id="artistProfileForm">
+                        <div class="form-group">
+                            <label for="artistStageName">Stage Name *</label>
+                            <input type="text" id="artistStageName" name="artistStageName" required>
                         </div>
                         <div class="form-group">
-                            <label for="location">Location *</label>
-                            <select id="location" name="location" required>
-                                <option value="">Select a location</option>
-                                <option value="nairobi">Nairobi</option>
-                                <option value="mombasa">Mombasa</option>
-                                <option value="kisumu">Kisumu</option>
-                                <option value="nakuru">Nakuru</option>
-                                <option value="eldoret">Eldoret</option>
-                                <option value="thika">Thika</option>
+                            <label for="artistBio">Bio</label>
+                            <textarea id="artistBio" name="artistBio" rows="4"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="artistGenre">Primary Genre *</label>
+                            <select id="artistGenre" name="artistGenre" required>
+                                <option value="pop">Pop</option>
+                                <option value="rock">Rock</option>
+                                <option value="hiphop">Hip Hop</option>
+                                <option value="rnb">R&B</option>
+                                <option value="electronic">Electronic</option>
+                                <option value="jazz">Jazz</option>
+                                <option value="classical">Classical</option>
+                                <option value="reggae">Reggae</option>
+                                <option value="afrobeat">Afrobeat</option>
                                 <option value="other">Other</option>
                             </select>
                         </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="artistWebsite">Website</label>
+                                <input type="url" id="artistWebsite" name="artistWebsite">
+                            </div>
+                            <div class="form-group">
+                                <label for="artistLocation">Based In</label>
+                                <select id="artistLocation" name="artistLocation">
+                                    <option value="nairobi">Nairobi</option>
+                                    <option value="mombasa">Mombasa</option>
+                                    <option value="kisumu">Kisumu</option>
+                                    <option value="nakuru">Nakuru</option>
+                                    <option value="eldoret">Eldoret</option>
+                                    <option value="thika">Thika</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <h3>Social Media Links</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="artistFacebook">Facebook</label>
+                                <input type="url" id="artistFacebook" name="artistFacebook">
+                            </div>
+                            <div class="form-group">
+                                <label for="artistInstagram">Instagram</label>
+                                <input type="url" id="artistInstagram" name="artistInstagram">
+                            </div>
+                            <div class="form-group">
+                                <label for="artistTwitter">Twitter</label>
+                                <input type="url" id="artistTwitter" name="artistTwitter">
+                            </div>
+                            <div class="form-group">
+                                <label for="artistYouTube">YouTube</label>
+                                <input type="url" id="artistYouTube" name="artistYouTube">
+                            </div>
+                        </div>
                         <div class="form-group">
-                            <label for="dateOfBirth">Date of Birth</label>
-                            <input type="date" id="dateOfBirth" name="dateOfBirth">
+                            <label for="artistProfileImage">Profile Image URL</label>
+                            <input type="url" id="artistProfileImage" name="artistProfileImage">
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="bio">Bio</label>
-                        <textarea id="bio" name="bio" rows="4" placeholder="Tell us about yourself..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="newsletter" name="newsletter">
-                            <span class="checkmark"></span>
-                            Subscribe to newsletter
-                        </label>
-                    </div>
-                    <button type="submit" class="btn btn-primary">💾 Save Changes</button>
-                </form>
-            </div>
+                        <button type="submit" class="btn btn-primary">💾 Save Profile</button>
+                    </form>
+                </div>
 
-            <!-- My Events Tab -->
-            <div id="eventsTab" class="tab-content">
-                <h2>My Events</h2>
-                <div class="event-filters">
-                    <button id="filterAll" class="btn btn-primary" onclick="filterEvents('all')">All</button>
-                    <button id="filterUpcoming" class="btn btn-secondary" onclick="filterEvents('upcoming')">Upcoming</button>
-                    <button id="filterAttended" class="btn btn-secondary" onclick="filterEvents('attended')">Attended</button>
-                    <button id="filterInterested" class="btn btn-secondary" onclick="filterEvents('interested')">Interested</button>
+                <!-- Upcoming Shows Tab -->
+                <div id="artistShows" class="tab-content">
+                    <h2>Upcoming Shows</h2>
+                    <div class="event-filters">
+                        <button class="btn btn-primary" onclick="filterArtistShows('all')">All</button>
+                        <button class="btn btn-secondary" onclick="filterArtistShows('confirmed')">Confirmed</button>
+                        <button class="btn btn-secondary" onclick="filterArtistShows('pending')">Pending</button>
+                        <button class="btn btn-secondary" onclick="filterArtistShows('cancelled')">Cancelled</button>
+                    </div>
+                    <div id="artistShowsContainer" class="events-container">
+                        <!-- Shows will be loaded here by JavaScript -->
+                    </div>
                 </div>
-                <div id="eventsContainer" class="events-container">
-                    <!-- Events will be loaded here by JavaScript -->
-                </div>
-            </div>
 
-            <!-- Preferences Tab -->
-            <div id="preferencesTab" class="tab-content">
-                <h2>Event Preferences</h2>
-                <p>Select your interests to get personalized event recommendations:</p>
-                <div id="preferencesContainer" class="preferences-container">
-                    <!-- Preferences will be loaded here by JavaScript -->
+                <!-- Merchandise Tab -->
+                <div id="artistMerch" class="tab-content">
+                    <h2>Merchandise</h2>
+                    <button class="btn btn-primary" onclick="addNewMerch()">➕ Add New Merch</button>
+                    <div id="artistMerchContainer" class="merch-grid">
+                        <!-- Merch items will be loaded here by JavaScript -->
+                    </div>
                 </div>
-                <button class="btn btn-primary" onclick="updateUserProfile()">💾 Save Preferences</button>
-            </div>
 
-            <!-- Privacy Settings Tab -->
-            <div id="privacyTab" class="tab-content">
-                <h2>Privacy Settings</h2>
-                <div class="privacy-section">
-                    <div class="privacy-toggle">
-                        <div class="toggle-switch" onclick="toggleSetting(this)">
-                            <div class="toggle-slider"></div>
-                        </div>
-                        <label>Make my profile public</label>
+                <!-- Gallery Tab -->
+                <div id="artistGallery" class="tab-content">
+                    <h2>Gallery</h2>
+                    <button class="btn btn-primary" onclick="addGalleryItem()">➕ Add Gallery Item</button>
+                    <div class="gallery-filters">
+                        <button class="btn btn-primary" onclick="filterGallery('all')">All</button>
+                        <button class="btn btn-secondary" onclick="filterGallery('photos')">Photos</button>
+                        <button class="btn btn-secondary" onclick="filterGallery('videos')">Videos</button>
+                        <button class="btn btn-secondary" onclick="filterGallery('audio')">Audio</button>
                     </div>
-                    <div class="privacy-toggle">
-                        <div class="toggle-switch active" onclick="toggleSetting(this)">
-                            <div class="toggle-slider"></div>
-                        </div>
-                        <label>Show my attended events</label>
-                    </div>
-                    <div class="privacy-toggle">
-                        <div class="toggle-switch" onclick="toggleSetting(this)">
-                            <div class="toggle-slider"></div>
-                        </div>
-                        <label>Allow others to find me by email</label>
-                    </div>
-                    <div class="privacy-toggle">
-                        <div class="toggle-switch active" onclick="toggleSetting(this)">
-                            <div class="toggle-slider"></div>
-                        </div>
-                        <label>Receive event recommendations</label>
-                    </div>
-                    <div class="privacy-toggle">
-                        <div class="toggle-switch" onclick="toggleSetting(this)">
-                            <div class="toggle-slider"></div>
-                        </div>
-                        <label>Receive email notifications</label>
-                    </div>
-                    <div class="privacy-toggle">
-                        <div class="toggle-switch active" onclick="toggleSetting(this)">
-                            <div class="toggle-slider"></div>
-                        </div>
-                        <label>Receive SMS notifications</label>
+                    <div id="artistGalleryContainer" class="gallery-grid">
+                        <!-- Gallery items will be loaded here by JavaScript -->
                     </div>
                 </div>
-                <button class="btn btn-primary" onclick="savePrivacySettings()">💾 Save Privacy Settings</button>
-            </div>
 
-            <!-- Security Tab -->
-            <div id="securityTab" class="tab-content">
-                <h2>Security Settings</h2>
-                <div class="security-section">
-                    <div class="security-item">
-                        <div class="security-info">
-                            <h4>Password</h4>
-                            <p>Change your account password</p>
+                <!-- Settings Tab -->
+                <div id="artistSettings" class="tab-content">
+                    <h2>Artist Settings</h2>
+                    <div class="settings-section">
+                        <h3>Performance Preferences</h3>
+                        <div class="form-group">
+                            <label for="artistMinFee">Minimum Performance Fee (KES)</label>
+                            <input type="number" id="artistMinFee" name="artistMinFee">
                         </div>
-                        <button class="btn btn-secondary" onclick="changePassword()">Change Password</button>
+                        <div class="form-group">
+                            <label for="artistTravel">Willing to Travel</label>
+                            <select id="artistTravel" name="artistTravel">
+                                <option value="locally">Locally Only</option>
+                                <option value="nationally">Nationally</option>
+                                <option value="internationally">Internationally</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="artistRequirements">Performance Requirements</label>
+                            <textarea id="artistRequirements" name="artistRequirements" rows="4"></textarea>
+                        </div>
                     </div>
-                    
-                    <div class="security-item">
-                        <div class="security-info">
-                            <h4>Two-Factor Authentication</h4>
-                            <p>Add an extra layer of security to your account</p>
+                    <div class="settings-section">
+                        <h3>Booking Preferences</h3>
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch active" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <label>Accept booking requests</label>
                         </div>
-                        <button class="btn btn-secondary" onclick="setup2FA()">Enable 2FA</button>
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <label>Require deposit</label>
+                        </div>
+                        <div class="form-group">
+                            <label for="artistDepositPercent">Deposit Percentage</label>
+                            <input type="number" id="artistDepositPercent" name="artistDepositPercent" min="0" max="100">
+                        </div>
                     </div>
-                    
-                    <div class="security-item">
-                        <div class="security-info">
-                            <h4>Active Sessions</h4>
-                            <p>Manage your active login sessions</p>
+                    <button class="btn btn-primary" onclick="saveArtistSettings()">💾 Save Settings</button>
+                </div>
+            </template>
+
+            <!-- Admin Tab Contents Template -->
+            <template id="adminTabContentsTemplate">
+                <!-- Dashboard Tab -->
+                <div id="adminDashboard" class="tab-content active">
+                    <h2>Admin Dashboard</h2>
+                    <div class="admin-stats-grid">
+                        <div class="stat-card">
+                            <h3>Total Users</h3>
+                            <div class="stat-value" id="adminTotalUsers">0</div>
+                            <div class="stat-change" id="adminUserChange">+0% from last week</div>
                         </div>
-                        <button class="btn btn-secondary" onclick="manageSessions()">Manage Sessions</button>
+                        <div class="stat-card">
+                            <h3>Active Events</h3>
+                            <div class="stat-value" id="adminActiveEvents">0</div>
+                            <div class="stat-change" id="adminEventChange">+0% from last week</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Pending Approvals</h3>
+                            <div class="stat-value" id="adminPendingApprovals">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Open Reports</h3>
+                            <div class="stat-value" id="adminOpenReports">0</div>
+                        </div>
                     </div>
-                    
-                    <div class="security-item">
-                        <div class="security-info">
-                            <h4>Download Your Data</h4>
-                            <p>Download a copy of your account data</p>
-                        </div>
-                        <button class="btn btn-secondary" onclick="downloadData()">Download Data</button>
+                    <div class="admin-charts">
+                        <canvas id="userGrowthChart"></canvas>
+                        <canvas id="eventTrendsChart"></canvas>
                     </div>
-                    
-                    <div class="security-item">
-                        <div class="security-info">
-                            <h4>Delete Account</h4>
-                            <p>Permanently delete your account and all data</p>
+                    <div class="recent-activity">
+                        <h3>Recent Activity</h3>
+                        <div id="adminActivityLog">
+                            <!-- Activity log will be loaded here -->
                         </div>
-                        <button class="btn btn-danger" onclick="deleteAccount()">Delete Account</button>
                     </div>
                 </div>
-            </div>
+
+                <!-- Users Management Tab -->
+                <div id="adminUsers" class="tab-content">
+                    <h2>User Management</h2>
+                    <div class="admin-search-bar">
+                        <input type="text" id="userSearch" placeholder="Search users...">
+                        <button class="btn btn-primary" onclick="searchUsers()">Search</button>
+                        <button class="btn btn-secondary" onclick="resetUserSearch()">Reset</button>
+                    </div>
+                    <div class="user-filters">
+                        <select id="userRoleFilter" onchange="filterUsers()">
+                            <option value="all">All Roles</option>
+                            <option value="user">Users</option>
+                            <option value="organizer">Organizers</option>
+                            <option value="artist">Artists</option>
+                            <option value="admin">Admins</option>
+                        </select>
+                        <select id="userStatusFilter" onchange="filterUsers()">
+                            <option value="all">All Statuses</option>
+                            <option value="active">Active</option>
+                            <option value="suspended">Suspended</option>
+                            <option value="banned">Banned</option>
+                        </select>
+                    </div>
+                    <table id="usersTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Joined</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Users will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div class="pagination">
+                        <button class="btn btn-secondary" onclick="prevUserPage()">Previous</button>
+                        <span id="userPageInfo">Page 1 of 1</span>
+                        <button class="btn btn-secondary" onclick="nextUserPage()">Next</button>
+                    </div>
+                </div>
+
+                <!-- Events Management Tab -->
+                <div id="adminEvents" class="tab-content">
+                    <h2>Event Management</h2>
+                    <div class="admin-search-bar">
+                        <input type="text" id="eventSearch" placeholder="Search events...">
+                        <button class="btn btn-primary" onclick="searchEvents()">Search</button>
+                        <button class="btn btn-secondary" onclick="resetEventSearch()">Reset</button>
+                    </div>
+                    <div class="event-filters">
+                        <select id="eventStatusFilter" onchange="filterEvents()">
+                            <option value="all">All Statuses</option>
+                            <option value="pending">Pending Approval</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="cancelled">Cancelled</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                        <select id="eventCategoryFilter" onchange="filterEvents()">
+                            <option value="all">All Categories</option>
+                            <option value="music">Music</option>
+                            <option value="sports">Sports</option>
+                            <option value="arts">Arts</option>
+                            <option value="food">Food</option>
+                            <option value="tech">Tech</option>
+                        </select>
+                        <select id="eventDateFilter" onchange="filterEvents()">
+                            <option value="all">All Dates</option>
+                            <option value="upcoming">Upcoming</option>
+                            <option value="past">Past</option>
+                            <option value="today">Today</option>
+                            <option value="thisWeek">This Week</option>
+                        </select>
+                    </div>
+                    <table id="eventsTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Organizer</th>
+                                <th>Date</th>
+                                <th>Location</th>
+                                <th>Status</th>
+                                <th>Attendees</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Events will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div class="pagination">
+                        <button class="btn btn-secondary" onclick="prevEventPage()">Previous</button>
+                        <span id="eventPageInfo">Page 1 of 1</span>
+                        <button class="btn btn-secondary" onclick="nextEventPage()">Next</button>
+                    </div>
+                </div>
+
+                <!-- Reports Management Tab -->
+                <div id="adminReports" class="tab-content">
+                    <h2>Reports Management</h2>
+                    <div class="report-filters">
+                        <select id="reportTypeFilter" onchange="filterReports()">
+                            <option value="all">All Types</option>
+                            <option value="user">User Reports</option>
+                            <option value="event">Event Reports</option>
+                            <option value="payment">Payment Issues</option>
+                            <option value="content">Content Violation</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <select id="reportStatusFilter" onchange="filterReports()">
+                            <option value="all">All Statuses</option>
+                            <option value="open">Open</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <table id="reportsTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Type</th>
+                                <th>Reported By</th>
+                                <th>Target</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Reports will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div class="pagination">
+                        <button class="btn btn-secondary" onclick="prevReportPage()">Previous</button>
+                        <span id="reportPageInfo">Page 1 of 1</span>
+                        <button class="btn btn-secondary" onclick="nextReportPage()">Next</button>
+                    </div>
+                </div>
+
+                <!-- Admin Settings Tab -->
+                <div id="adminSettings" class="tab-content">
+                    <h2>Admin Settings</h2>
+                    <div class="settings-section">
+                        <h3>System Configuration</h3>
+                        <form id="systemConfigForm">
+                            <div class="form-group">
+                                <label for="siteName">Site Name</label>
+                                <input type="text" id="siteName" name="siteName">
+                            </div>
+                            <div class="form-group">
+                                <label for="siteLogo">Site Logo URL</label>
+                                <input type="url" id="siteLogo" name="siteLogo">
+                            </div>
+                            <div class="form-group">
+                                <label for="defaultCurrency">Default Currency</label>
+                                <select id="defaultCurrency" name="defaultCurrency">
+                                    <option value="KES">Kenyan Shilling (KES)</option>
+                                    <option value="USD">US Dollar (USD)</option>
+                                    <option value="EUR">Euro (EUR)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="timezone">Timezone</label>
+                                <select id="timezone" name="timezone">
+                                    <option value="Africa/Nairobi">Africa/Nairobi</option>
+                                    <!-- More timezones can be added -->
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">💾 Save Configuration</button>
+                        </form>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Event Approval Settings</h3>
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch active" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <label>Require event approval</label>
+                        </div>
+                        <div class="form-group">
+                            <label for="autoApproveThreshold">Auto-approve for organizers with rating above</label>
+                            <input type="number" id="autoApproveThreshold" name="autoApproveThreshold" min="0" max="5" step="0.1">
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Admin Notifications</h3>
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch active" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <label>New event submissions</label>
+                        </div>
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch active" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <label>New user reports</label>
+                        </div>
+                        <div class="privacy-toggle">
+                            <div class="toggle-switch" onclick="toggleSetting(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <label>System alerts</label>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Admin Users</h3>
+                        <div id="adminUsersList">
+                            <!-- Admin users will be listed here -->
+                        </div>
+                        <button class="btn btn-secondary" onclick="addAdminUser()">➕ Add Admin User</button>
+                    </div>
+                </div>
+            </template>
         </div>
     </main>
 

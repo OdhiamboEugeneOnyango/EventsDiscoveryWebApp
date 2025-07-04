@@ -25,161 +25,74 @@ class EventsManager {
     }
 
     // Load events from backend
-    async loadEvents() {
+    // Load events from backend - Debug version
+async loadEvents() {
     try {
+        console.log('🔍 Loading events from API...');
         const response = await fetch('/api/events');
-        if (response.ok) {
-            const data = await response.json();
-            this.events = data.events || [];
-            this.filteredEvents = [...this.events];
-            this.displayEvents();
-        } else {
-            console.error('Failed to load events');
-            this.events = [];
-            this.filteredEvents = [];
-            this.displayEvents();
+        console.log('📡 API Response Status:', response.status);
+        
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        const data = await response.json();
+        console.log('📊 Raw API Data:', data);
+        console.log('📋 Number of events received:', data.events ? data.events.length : 0);
+        
+        // Log first event to check structure
+        if (data.events && data.events.length > 0) {
+            console.log('🎯 First event structure:', data.events[0]);
+            console.log('📝 First event keys:', Object.keys(data.events[0]));
         }
-    } catch (error) {
-        console.error('Error loading events:', error);
-        this.events = [];
-        this.filteredEvents = [];
-        this.displayEvents();
-    }
-}
-/*
-    // Fallback sample events
-    loadSampleEvents() {
-        this.events = [
-            {
-                id: 1,
-                title: "Nairobi Jazz Festival",
-                description: "Experience the best jazz music from local and international artists. A night of soulful melodies and rhythmic beats that will leave you wanting more.",
-                date: "2025-07-15",
-                time: "19:00",
-                location: "Nairobi",
-                venue: "Carnivore Restaurant",
-                coordinates: { lat: -1.2921, lng: 36.8219 },
-                price: 2500,
-                category: "music",
-                organizer: "Jazz Kenya",
-                organizerBio: "Professional jazz event organizers with 10+ years experience",
-                icon: "🎵",
-                image: "/images/jazz-festival.jpg",
-                capacity: 500,
-                attendees: 234,
-                rating: 4.5,
-                reviews: 89,
-                safetyRating: 5,
-                ticketTypes: [
-                    { type: "General Admission", price: 2500 },
-                    { type: "VIP", price: 5000 }
-                ]
-            },
-            {
-                id: 2,
-                title: "Nairobi Marathon",
-                description: "Join thousands of runners in Kenya's premier marathon event. Run through the beautiful streets of Nairobi while supporting local charities.",
-                date: "2025-07-20",
-                time: "06:00",
-                location: "Nairobi",
-                venue: "Uhuru Park",
-                coordinates: { lat: -1.2921, lng: 36.8219 },
-                price: 1500,
-                category: "sports",
-                organizer: "Athletics Kenya",
-                organizerBio: "Official athletics governing body in Kenya",
-                icon: "🏃‍♂️",
-                image: "/images/marathon.jpg",
-                capacity: 10000,
-                attendees: 7500,
-                rating: 4.8,
-                reviews: 156,
-                safetyRating: 5,
-                ticketTypes: [
-                    { type: "Full Marathon", price: 1500 },
-                    { type: "Half Marathon", price: 1000 }
-                ]
-            },
-            {
-                id: 3,
-                title: "Art Exhibition: Modern Kenya",
-                description: "Discover contemporary Kenyan art from emerging and established artists. A showcase of the country's vibrant artistic culture.",
-                date: "2025-07-25",
-                time: "10:00",
-                location: "Nairobi",
-                venue: "National Museum",
-                coordinates: { lat: -1.2921, lng: 36.8219 },
-                price: 500,
-                category: "arts",
-                organizer: "Kenya Art Society",
-                organizerBio: "Promoting Kenyan art and culture since 1980",
-                icon: "🎨",
-                image: "/images/art-exhibition.jpg",
-                capacity: 200,
-                attendees: 89,
-                rating: 4.2,
-                reviews: 34,
-                safetyRating: 4,
-                ticketTypes: [
-                    { type: "General Entry", price: 500 },
-                    { type: "Guided Tour", price: 800 }
-                ]
-            },
-            {
-                id: 4,
-                title: "Tech Conference 2025",
-                description: "Leading technology conference bringing together innovators, entrepreneurs, and tech enthusiasts from across East Africa.",
-                date: "2025-08-01",
-                time: "09:00",
-                location: "Nairobi",
-                venue: "KICC",
-                coordinates: { lat: -1.2921, lng: 36.8219 },
-                price: 3000,
-                category: "tech",
-                organizer: "Tech Kenya",
-                organizerBio: "Leading tech community in Kenya",
-                icon: "💻",
-                image: "/images/tech-conference.jpg",
-                capacity: 1000,
-                attendees: 456,
-                rating: 4.7,
-                reviews: 78,
-                safetyRating: 5,
-                ticketTypes: [
-                    { type: "Standard", price: 3000 },
-                    { type: "Premium", price: 5000 }
-                ]
-            },
-            {
-                id: 5,
-                title: "Nairobi Food Festival",
-                description: "Taste the best of Kenyan and international cuisine. Food vendors, cooking demonstrations, and cultural performances.",
-                date: "2025-08-10",
-                time: "11:00",
-                location: "Nairobi",
-                venue: "Tatu City",
-                coordinates: { lat: -1.2921, lng: 36.8219 },
-                price: 0,
-                category: "food",
-                organizer: "Foodies Kenya",
-                organizerBio: "Celebrating Kenya's culinary heritage",
-                icon: "🍽️",
-                image: "/images/food-festival.jpg",
-                capacity: 2000,
-                attendees: 1200,
-                rating: 4.6,
-                reviews: 203,
-                safetyRating: 4,
-                ticketTypes: [
-                    { type: "Free Entry", price: 0 }
-                ]
-            }
-        ];
+        
+        // Validate and normalize the events data
+        this.events = (data.events || []).map((event, index) => {
+            console.log(`🎪 Processing event ${index + 1}:`, event.title || 'Untitled');
+            
+            return {
+                id: event.id,
+                title: event.title || 'Untitled Event',
+                description: event.description || 'No description available',
+                date: event.date || new Date().toISOString().split('T')[0],
+                time: event.time || '19:00',
+                location: event.location || 'Unknown Location',
+                venue: event.venue || 'Unknown Venue',
+                price: event.price || 0,
+                icon: event.icon || '🎭',
+                category: event.category || 'Other',
+                organizer: event.organizer || 'Unknown Organizer',
+                organizerBio: event.organizerBio || 'No bio available',
+                rating: event.rating || 0,
+                reviews: event.reviews || 0,
+                attendees: event.attendees || 0,
+                capacity: event.capacity || 100,
+                coordinates: event.coordinates || { lat: -1.2921, lng: 36.8219 },
+                featured: event.featured || false,
+                status: event.status || 'active',
+                image: event.image || '',
+                safetyRating: event.safetyRating || 5
+            };
+        });
+        
+        console.log('✅ Processed events:', this.events.length);
+        console.log('🎊 Final events array:', this.events);
         
         this.filteredEvents = [...this.events];
         this.displayEvents();
+        this.updateResultsCount();
+        
+    } catch (error) {
+        console.error('❌ Error loading events:', error);
+        console.error('📍 Error details:', error.message);
+        console.error('🔍 Stack trace:', error.stack);
+        
+        this.events = [];
+        this.filteredEvents = [];
+        this.displayEvents();
+        this.updateResultsCount();
     }
-*/
+}
+    // Display events in the current view
+    
     // Setup event listeners
     setupEventListeners() {
         // Search functionality
@@ -425,56 +338,61 @@ class EventsManager {
     }
 
     // Create event card
-    createEventCard(event) {
-        const isInterested = this.userInteractions.interested.includes(event.id);
-        const isGoing = this.userInteractions.going.includes(event.id);
-        const isSaved = this.userInteractions.saved.includes(event.id);
+    
+createEventCard(event) {
+    const isInterested = this.userInteractions.interested.includes(event.id);
+    const isGoing = this.userInteractions.going.includes(event.id);
+    const isSaved = this.userInteractions.saved.includes(event.id);
 
-        return `
-            <div class="event-card" onclick="eventsManager.showEventDetails(${event.id})">
-                <div class="event-image">
-                    <span class="event-icon">${event.icon}</span>
-                    <div class="event-badges">
-                        ${event.price === 0 ? '<span class="badge badge-free">Free</span>' : ''}
-                        ${isInterested ? '<span class="badge badge-interested">❤️</span>' : ''}
-                        ${isGoing ? '<span class="badge badge-going">✅</span>' : ''}
-                        ${isSaved ? '<span class="badge badge-saved">🔖</span>' : ''}
+    // Safely handle missing description
+    const description = event.description ? 
+        event.description.substring(0, 100) + (event.description.length > 100 ? '...' : '') : 
+        'No description available';
+
+    return `
+        <div class="event-card" onclick="eventsManager.showEventDetails(${event.id})">
+            <div class="event-image">
+                <span class="event-icon">${event.icon}</span>
+                <div class="event-badges">
+                    ${event.price === 0 ? '<span class="badge badge-free">Free</span>' : ''}
+                    ${isInterested ? '<span class="badge badge-interested">❤️</span>' : ''}
+                    ${isGoing ? '<span class="badge badge-going">✅</span>' : ''}
+                    ${isSaved ? '<span class="badge badge-saved">🔖</span>' : ''}
+                </div>
+            </div>
+            
+            <div class="event-content">
+                <h3 class="event-title">${event.title}</h3>
+                <p class="event-description">${description}</p>
+                
+                <div class="event-meta">
+                    <div class="meta-item">
+                        <span class="meta-icon">📅</span>
+                        <span>${this.formatDate(event.date)} at ${event.time}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-icon">📍</span>
+                        <span>${event.venue}, ${event.location}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-icon">💰</span>
+                        <span>${event.price === 0 ? 'Free' : `KSH ${event.price.toLocaleString()}`}</span>
                     </div>
                 </div>
                 
-                <div class="event-content">
-                    <h3 class="event-title">${event.title}</h3>
-                    <p class="event-description">${event.description.substring(0, 100)}...</p>
-                    
-                    <div class="event-meta">
-                        <div class="meta-item">
-                            <span class="meta-icon">📅</span>
-                            <span>${this.formatDate(event.date)} at ${event.time}</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-icon">📍</span>
-                            <span>${event.venue}, ${event.location}</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-icon">💰</span>
-                            <span>${event.price === 0 ? 'Free' : `KSH ${event.price.toLocaleString()}`}</span>
-                        </div>
+                <div class="event-stats">
+                    <div class="stat">
+                        <span class="rating">⭐ ${event.rating}</span>
+                        <span class="reviews">(${event.reviews} reviews)</span>
                     </div>
-                    
-                    <div class="event-stats">
-                        <div class="stat">
-                            <span class="rating">⭐ ${event.rating}</span>
-                            <span class="reviews">(${event.reviews} reviews)</span>
-                        </div>
-                        <div class="stat">
-                            <span class="attendees">👥 ${event.attendees}/${event.capacity}</span>
-                        </div>
+                    <div class="stat">
+                        <span class="attendees">👥 ${event.attendees}/${event.capacity}</span>
                     </div>
                 </div>
             </div>
-        `;
-    }
-
+        </div>
+    `;
+}
     // Show event details modal
     showEventDetails(eventId) {
         const event = this.events.find(e => e.id === eventId);
