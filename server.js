@@ -167,7 +167,7 @@ const validateSignupData = async (req, res, next) => {
 const validateLoginData = (req, res, next) => {
     const { email, password, role } = req.body;
 
-    if (!email || !password || !role) {
+    if (!email || !password) {
         return res.status(400).json({
             success: false,
             message: 'Email, password, and role are required'
@@ -540,10 +540,10 @@ app.get('/api/admin/invite-codes', requireAuth, requireRole(['admin']), async (r
 // Login Route
 app.post('/api/auth/login', validateLoginData, async (req, res) => {
     try {
-        const { email, password, role } = req.body;
+        const { email, password } = req.body;
         
         //Find user by email and role
-       const user = await User.findOne({ email: email.toLowerCase(), role });
+       const user = await User.findOne({ email: email.toLowerCase()});
 
         if (!user) {
             return res.status(401).json({
