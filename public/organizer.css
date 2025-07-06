@@ -319,6 +319,61 @@
             color: white;
         }
 
+        /* Finance Section */
+.finance-section {
+    margin-top: 3rem;
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+}
+
+.finance-section h2 {
+    font-size: 1.8rem;
+    margin-bottom: 1.5rem;
+    color: #333;
+    text-align: center;
+}
+
+.finance-section h3 {
+    font-size: 1.2rem;
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+    color: #444;
+    border-bottom: 2px solid #e1e5e9;
+    padding-bottom: 0.5rem;
+}
+
+/* Finance Tables */
+.finance-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    margin-bottom: 2rem;
+}
+
+.finance-table thead {
+    background: #f1f1f9;
+}
+
+.finance-table th,
+.finance-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e1e5e9;
+    font-size: 0.95rem;
+    color: #333;
+}
+
+.finance-table tr:hover {
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.finance-table th {
+    font-weight: 600;
+    color: #222;
+}
+
         /* Event Form Modal */
         .modal {
             display: none;
@@ -509,4 +564,66 @@
             color: #0c5460;
             border: 1px solid #bee5eb;
         }
+
+        /* Profile Dropdown */
+.profile-dropdown {
+    position: relative;
+    display: inline-block;
+    margin-left: 1rem;
+}
+
+.profile-dropdown .btn {
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 8px 16px;
+    border-radius: 25px;
+    background-color: #667eea;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+}
+
+/* Dropdown Menu */
+.dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 120%;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    min-width: 180px;
+    z-index: 999;
+    display: none;
+    flex-direction: column;
+    padding: 0.5rem 0;
+    animation: fadeInUp 0.3s ease forwards;
+}
+
+/* Dropdown Items */
+.dropdown-menu a {
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 0.75rem 1.25rem;
+    color: #333;
+    transition: background 0.2s, color 0.2s;
+    display: block;
+    text-decoration: none;
+}
+
+.dropdown-menu a:hover {
+    background-color: #f5f5f5;
+    color: #667eea;
+}
+
+/* Optional: Fade animation */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
    

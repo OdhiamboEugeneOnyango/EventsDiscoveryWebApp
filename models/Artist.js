@@ -6,16 +6,55 @@ const artistSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true,
-        unique: true
+        unique: true // stage name
     },
     bio: {
         type: String,
-        required: false,
         trim: true
+    },
+    genre: {
+        type: String,
+        trim: true,
+        required: true
     },
     profilePic: {
         type: String,
         trim: true
+    },
+    profileImage: { // optional alias if used in frontend
+        type: String,
+        trim: true
+    },
+    website: {
+        type: String,
+        trim: true
+    },
+    travelPreference: {
+        type: String,
+        enum: ['locally', 'nationally', 'internationally'],
+        default: 'locally'
+    },
+    minFee: {
+        type: Number,
+        default: 0
+    },
+    performanceRequirements: {
+        type: String,
+        trim: true
+    },
+    acceptsBookings: {
+        type: Boolean,
+        default: true
+    },
+    requiresDeposit: {
+        type: Boolean,
+        default: false
+    },
+    depositPercent: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: 0
     },
     social: {
         facebook: { type: String, trim: true },
@@ -35,17 +74,20 @@ const artistSchema = new mongoose.Schema({
             ref: 'ArtGallery'
         }
     ],
-    //  LINK TO THE USER SCHEMA
+
+    // Link to the User
     user: {
-        type: mongoose.Schema.Types.ObjectId, // Specifies it's a MongoDB ObjectId
-        ref: 'User', // Tells Mongoose which model to use for population
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
         required: true,
-        unique: true // Ensures one User can only have one Artist profile
+        unique: true
     }
+
 }, {
     timestamps: true
 });
 
-// ... virtuals and toJSON/toObject settings ...
+artistSchema.set('toJSON', { virtuals: true });
+artistSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('Artist', artistSchema);

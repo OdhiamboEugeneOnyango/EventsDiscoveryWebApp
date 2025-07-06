@@ -31,6 +31,23 @@ function authenticateToken(req, res, next) {
   }
 }
 
+// GET /api/auth/verify - Check if logged-in user is an artist
+router.get('/api/auth/verify', authenticateToken, async (req, res) => {
+  try {
+    const artist = await Artist.findOne({ user: req.user.id })
+      .populate('merchandise')
+      .populate('upcomingEvents')
+      .populate('artGallery');
+
+    if (!artist) return res.json({ success: false });
+
+    res.json({ success: true, artist });
+  } catch (error) {
+    console.error('Auth verify error:', error);
+    res.status(500).json({ success: false });
+  }
+});
+
 // Multer configuration for image uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -149,7 +166,7 @@ router.put('/artists/:id', authenticateToken, upload.single('profilePic'), async
 });
 
 // POST /api/artists/:id/merchandise - Add merchandise
-router.post('/artists/:id/merchandise', authenticateToken, async (req, res) => {
+router.post('/api/artists/:id/merchandise', authenticateToken, async (req, res) => {
   try {
     const artist = await Artist.findById(req.params.id);
     if (!artist) {
@@ -203,7 +220,7 @@ router.delete('/artists/:id/merchandise/:itemId', authenticateToken, async (req,
 });
 
 // POST /api/artists/:id/events - Add event
-router.post('/artists/:id/events', authenticateToken, async (req, res) => {
+router.post('/api/artists/:id/events', authenticateToken, async (req, res) => {
   try {
     const artist = await Artist.findById(req.params.id);
     if (!artist) {
@@ -258,7 +275,7 @@ router.delete('/artists/:id/events/:eventId', authenticateToken, async (req, res
 });
 
 // POST /api/artists/:id/gallery - Add art piece
-router.post('/artists/:id/gallery', authenticateToken, async (req, res) => {
+router.post('/api/artists/:id/gallery', authenticateToken, async (req, res) => {
   try {
     const artist = await Artist.findById(req.params.id);
     if (!artist) {
@@ -311,7 +328,7 @@ router.delete('/artists/:id/gallery/:artId', authenticateToken, async (req, res)
 });
 
 // POST /api/artists/:id/contact - Send message to artist
-router.post('/artists/:id/contact', async (req, res) => {
+router.post('/api/artists/:id/contact', async (req, res) => {
   try {
     const { name, email, message } = req.body;
 
@@ -332,7 +349,7 @@ router.post('/artists/:id/contact', async (req, res) => {
 });
 
 // GET /api/artists/:id/owner - Check if user owns this artist profile
-router.get('/artists/:id/owner', authenticateToken, async (req, res) => {
+router.get('/api/artists/:id/owner', authenticateToken, async (req, res) => {
   try {
     const artist = await Artist.findById(req.params.id);
     if (!artist) {

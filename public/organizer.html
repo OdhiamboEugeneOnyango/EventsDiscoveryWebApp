@@ -15,16 +15,19 @@
                 <li><a href="/dashboard">Dashboard</a></li>
                 <li><a href="/events">Events</a></li>
                 <li><a href="/applications">Applications</a></li>
+                <li><a href="OrganizerVerification.html">Become a Verified Organizer✅</a></li>
                 <li><a href="/profile">Profile</a></li>
             </ul>
-            <div class="profile-dropdown" id="profileDropdown">
-                <button class="btn btn-primary profile-toggle" onclick="toggleDropdown()">Profile ▾</button>
-                <div class="dropdown-menu" id="dropdownMenu" style="display:none;">
-                    <a onclick="switchRole('user')">Switch to Attending</a>
-                    <a onclick="switchRole('artist')">Switch to Performing</a>
-                    <a href="profile.html">View Profile</a>
-                </div>
-            </div> 
+            <div class="profile-dropdown" id="profileDropdown" style="display: none;">
+        <button class="btn btn-primary profile-toggle" onclick="toggleDropdown()">Profile ▾</button>
+        <div class="dropdown-menu" id="dropdownMenu" style="display: none;">
+          <a onclick="switchRole('user')">Switch to Attendee</a>
+          <a onclick="switchRole('organizer')" style="display: none;">Switch to Organizer</a>
+          <a onclick="switchRole('artist')">Switch to Performer</a>
+          <a href="profile.html">View Profile</a>
+          <a href="#" onclick="logout()">Logout</a>
+        </div>
+      </div> 
         </nav>
     </header>
 
@@ -136,6 +139,55 @@
                             </tr>
                         </tbody>
                     </table>
+                    <!-- Finance Section -->
+<section class="finance-section">
+    <h2>Organizer Finances</h2>
+
+    <h3>Refund History</h3>
+    <table id="refundTable" class="finance-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>User</th>
+                <th>Amount</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="refundTableBody">
+            <!-- Loaded via JS -->
+        </tbody>
+    </table>
+
+    <h3>Expense Log</h3>
+    <table id="expenseTable" class="finance-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Type</th>
+            </tr>
+        </thead>
+        <tbody id="expenseTableBody">
+            <!-- Loaded via JS -->
+        </tbody>
+    </table>
+
+    <h3>Payout History</h3>
+    <table id="payoutHistoryTable" class="finance-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="payoutHistoryTableBody">
+            <!-- Loaded via JS -->
+        </tbody>
+    </table>
+</section>
                 </div>
             </div>
         </div>
@@ -226,6 +278,85 @@
     <script src="organizer.js"></script>
 
     <script>
+
+    function getAuthToken() {
+    return localStorage.getItem('authToken') || '';
+}
+
+        async function loadRefundHistory() {
+    try {
+        const response = await fetch('/api/finance/refunds', {
+            headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+        });
+        const data = await response.json();
+        if (data.success) {
+            const table = document.querySelector('#refundTable tbody');
+            table.innerHTML = '';
+            data.refunds.forEach(refund => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${new Date(refund.date).toLocaleDateString()}</td>
+                    <td>${refund.userEmail || 'N/A'}</td>
+                    <td>KSh ${refund.amount.toFixed(2)}</td>
+                    <td>${refund.status}</td>
+                `;
+                table.appendChild(row);
+            });
+        }
+    } catch (err) {
+        console.error('Failed to load refund history:', err);
+    }
+}
+
+  async function loadExpenseLog() {
+    try {
+        const response = await fetch('/api/finance/expenses', {
+            headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+        });
+        const data = await response.json();
+        if (data.success) {
+            const table = document.querySelector('#expenseTable tbody');
+            table.innerHTML = '';
+            data.expenses.forEach(exp => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${new Date(exp.date).toLocaleDateString()}</td>
+                    <td>${exp.description}</td>
+                    <td>KSh ${exp.amount.toFixed(2)}</td>
+                    <td>${exp.type}</td>
+                `;
+                table.appendChild(row);
+            });
+        }
+    } catch (err) {
+        console.error('Failed to load expense log:', err);
+    }
+}
+
+  async function loadPayoutHistory() {
+    try {
+        const response = await fetch('/api/finance/payouts', {
+            headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+        });
+        const data = await response.json();
+        if (data.success) {
+            const table = document.querySelector('#payoutHistoryTable tbody');
+            table.innerHTML = '';
+            data.payouts.forEach(p => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${new Date(p.date).toLocaleDateString()}</td>
+                    <td>KSh ${p.amount.toFixed(2)}</td>
+                    <td>${p.method}</td>
+                    <td>${p.status}</td>
+                `;
+                table.appendChild(row);
+            });
+        }
+    } catch (err) {
+        console.error('Failed to load payout history:', err);
+    }
+}
   function toggleDropdown() {
     const menu = document.getElementById('dropdownMenu');
     menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
@@ -246,6 +377,10 @@
     if (currentRole !== 'organizer') {
       window.location.href = 'index.html'; // fallback if user forcefully accesses this page
     }
+
+    loadRefundHistory();
+    loadExpenseLog();
+    loadPayoutHistory();
   });
 </script>
 </body>

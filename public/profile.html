@@ -539,6 +539,23 @@
                             <button type="submit" class="btn btn-primary">💾 Save Payout Settings</button>
                         </form>
                     </div>
+                    <div class="finance-history">
+                    <h3>Refund History</h3>
+                    <table id="refundTable">
+                        <thead>
+                        <tr><th>Date</th><th>User</th><th>Amount</th><th>Status</th></tr>
+                        </thead>
+                        <tbody><!-- Populated by JS --></tbody>
+                    </table>
+
+                    <h3>Expense Log</h3>
+                    <table id="expenseTable">
+                        <thead>
+                        <tr><th>Date</th><th>Description</th><th>Amount</th><th>Type</th></tr>
+                        </thead>
+                        <tbody><!-- Populated by JS --></tbody>
+                    </table>
+                    </div>
                     <div class="payout-history">
                         <h3>Payout History</h3>
                         <table id="payoutHistoryTable">
@@ -998,8 +1015,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderProfileContent(currentRole);
 });
 
-// Render profile content dynamically
-function renderProfileContent(role) {
+function renderProfileContent(role, user = null, artistData = null, organizerData = null) {
     const templates = {
         user: {
             header: 'userProfileTemplate',
@@ -1024,27 +1040,47 @@ function renderProfileContent(role) {
     };
 
     const config = templates[role];
-    if (!config) return;
+    if (!config) {
+        console.error(`❌ Unknown role: ${role}`);
+        return;
+    }
 
     // Clear existing content
-    document.getElementById('profileHeader').innerHTML = '';
-    document.getElementById('tabNav').innerHTML = '';
-    document.getElementById('tabContents').innerHTML = '';
+    const headerEl = document.getElementById('profileHeader');
+    const navEl = document.getElementById('tabNav');
+    const contentEl = document.getElementById('tabContents');
+
+    if (!headerEl || !navEl || !contentEl) {
+        console.error('❌ One or more target containers not found in DOM');
+        return;
+    }
+
+    headerEl.innerHTML = '';
+    navEl.innerHTML = '';
+    contentEl.innerHTML = '';
 
     // Load templates
-    ['profileHeader', 'tabNav', 'tabContents'].forEach((section, i) => {
+    [headerEl, navEl, contentEl].forEach((section, i) => {
         const tpl = document.getElementById(Object.values(config)[i]);
         if (tpl) {
             const clone = tpl.content.cloneNode(true);
-            document.getElementById(section).appendChild(clone);
+            section.appendChild(clone);
+        } else {
+            console.warn(`⚠ Missing template: ${Object.values(config)[i]}`);
         }
     });
 
-    // Optional: Set default tab to first
+    // Set default active tab
     const firstTab = document.querySelector('.tab-btn');
     if (firstTab) firstTab.click();
-}
 
+    // ✅ If user data is available, populate the profile
+    if (user) {
+        setTimeout(() => {
+            populateUserProfile(user, artistData, organizerData);
+        }, 100);
+    }
+}
 // ========== Tab Switching Logic (Scoped) ==========
 function showTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(tab => {

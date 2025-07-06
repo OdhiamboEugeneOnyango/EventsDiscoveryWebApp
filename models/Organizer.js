@@ -16,7 +16,11 @@ const organizerSchema = new mongoose.Schema({
         type: String,
         trim: true
     },
-    contactEmail: { // Specific email for event inquiries, might differ from user's login email
+    logo: {
+        type: String,
+        trim: true
+    },
+    contactEmail: {
         type: String,
         trim: true,
         lowercase: true,
@@ -27,21 +31,44 @@ const organizerSchema = new mongoose.Schema({
         trim: true,
         match: [/^(\+254|0)[17]\d{8}$/, 'Please enter a valid Kenyan phone number']
     },
+    location: {
+        type: String,
+        lowercase: true,
+        trim: true
+    },
+
     // Link to the User document that owns this organizer profile
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
-        unique: true // A user can only have one organizer profile
+        unique: true
     },
-    // Other organizer-specific fields, e.g.,
-    // businessRegistrationNumber: String,
-    // paymentDetails: {
-    //     bankName: String,
-    //     accountNumber: String,
-    //     // ...
-    // },
-    // eventsOrganized: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Event' }] // Virtual or direct reference
+
+    // Notifications settings
+    notifications: {
+        eventRegistration: { type: Boolean, default: true },
+        ticketSales: { type: Boolean, default: true },
+        marketingEmails: { type: Boolean, default: false }
+    },
+
+    // Payout preferences
+    payoutSettings: {
+        payoutMethod: {
+            type: String,
+            enum: ['bank', 'mpesa', 'paypal'],
+            default: 'mpesa'
+        },
+        bankDetails: {
+            bankName: String,
+            accountName: String,
+            accountNumber: String,
+            branchCode: String
+        },
+        mpesaNumber: String,
+        paypalEmail: String
+    }
+
 }, {
     timestamps: true
 });
@@ -50,11 +77,10 @@ const organizerSchema = new mongoose.Schema({
 organizerSchema.virtual('events', {
     ref: 'Event',
     localField: '_id',
-    foreignField: 'organizer' // Assuming EventSchema has an 'organizer' field referencing this model
+    foreignField: 'organizer'
 });
 
 organizerSchema.set('toJSON', { virtuals: true });
 organizerSchema.set('toObject', { virtuals: true });
-
 
 module.exports = mongoose.model('Organizer', organizerSchema);

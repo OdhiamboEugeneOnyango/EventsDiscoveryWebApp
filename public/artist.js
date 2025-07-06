@@ -1,35 +1,91 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    // Global variables
+    setupRoleAwareUI(); // 🔐 Make sure dropdown/auth buttons work properly
+
     let currentUser = null;
     let currentArtistId = null;
     let isArtistOwner = false;
     let hasArtistRole = false;
     let allArtists = [];
-    
-    // Initialize the page
+
     await initializePage();
-    
-    async function initializePage() {
-        // Get current user information
-        currentUser = await getCurrentUser();
-        
-        // Load all artists for dropdown
-        await loadArtistDropdown();
-        
-        // Check URL parameters for pre-selected artist
-        const urlParams = new URLSearchParams(window.location.search);
-        const artistId = urlParams.get('artistId');
-        
-        if (artistId) {
-            // Set dropdown to the specified artist
-            const artistSelect = document.getElementById('artistSelect');
-            artistSelect.value = artistId;
-            await loadArtistProfile(artistId);
+
+async function initializePage() {
+    currentUser = await getCurrentUser();
+    const currentRole = localStorage.getItem('currentRole');
+
+    if (currentRole === 'artist') {
+        try {
+            const res = await fetch('/api/auth/verify', {
+                headers: { Authorization: `Bearer ${getAuthToken()}` }
+            });
+
+            const data = await res.json();
+            if (data && data.artist) {
+                currentArtistId = data.artist.id;
+                isArtistOwner = true;
+                hasArtistRole = true;
+
+                // Hide selector dropdown
+                const selector = document.getElementById('artistSelectorSection');
+                if (selector) selector.style.display = 'none';
+
+                // Enable editing mode and load profile
+                initializePageBasedOnRole(true, true);
+                await populateArtistData(data.artist);
+                return; // ✅ skip dropdown logic
+            }
+        } catch (err) {
+            console.error('Error verifying artist:', err);
         }
-        
-        // Setup dropdown change handler
-        setupArtistDropdownHandler();
     }
+
+    // Fallback: load artist selector + handle dropdown logic
+    await loadArtistDropdown();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const artistId = urlParams.get('artistId');
+
+    if (artistId) {
+        const artistSelect = document.getElementById('artistSelect');
+        artistSelect.value = artistId;
+        await loadArtistProfile(artistId);
+    }
+
+    setupArtistDropdownHandler();
+}
+
+
+// Show/hide login/signup or profile dropdown based on auth
+function setupRoleAwareUI() {
+    const token = localStorage.getItem('authToken');
+    const currentRole = localStorage.getItem('currentRole');
+    const isLoggedIn = !!token;
+
+    const authButtons = document.querySelector('.auth-buttons');
+    const profileDropdown = document.getElementById('profileDropdown');
+
+    // Role switch links
+    const switchToUser = document.querySelector('a[onclick*="switchRole(\'user\')"]');
+    const switchToArtist = document.querySelector('a[onclick*="switchRole(\'artist\')"]');
+    const switchToOrganizer = document.querySelector('a[onclick*="switchRole(\'organizer\')"]');
+
+    if (token && currentRole) {
+        // Hide login/signup
+        if (authButtons) authButtons.style.display = 'none';
+        if (profileDropdown) profileDropdown.style.display = 'block';
+
+        // Show/hide switch options based on role
+        if (switchToUser)     switchToUser.style.display     = currentRole === 'user'     ? 'none' : 'block';
+        if (switchToArtist)   switchToArtist.style.display   = currentRole === 'artist'   ? 'none' : 'block';
+        if (switchToOrganizer) switchToOrganizer.style.display = currentRole === 'organizer' ? 'none' : 'block';
+
+    } else {
+        // Show login/signup
+        if (authButtons) authButtons.style.display = 'flex';
+        if (profileDropdown) profileDropdown.style.display = 'none';
+    }
+}
+
     
     // Load all artists for the dropdown
     async function loadArtistDropdown() {
@@ -828,6 +884,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     });
+
+    function toggleDropdown() {
+    const dropdown = document.getElementById('dropdownMenu');
+    dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+}
+    function switchRole(role) {
+    localStorage.setItem('currentRole', role);
+
+    const redirects = {
+        user: 'index.html',
+        artist: 'artist.html',
+        organizer: 'organizer.html',
+        admin: 'admin.html'
+    };
+
+    window.location.href = redirects[role] || 'index.html';
+}
     
     // Add loading states to buttons
     function addLoadingState(button, originalText) {
@@ -903,4 +976,3 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     });
-});

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Artist Verification - EventHub</title>
+  <link rel="stylesheet" href="auth.css" />
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <a href="index.html" class="logo">EventHub</a>
+        <h1>Become a Verified Artist</h1>
+        <p>Tell us more about your art and portfolio</p>
+      </div>
+
+      <form id="artistVerificationForm" class="auth-form">
+        <div class="form-group">
+          <label for="stageName">Stage Name</label>
+          <input type="text" id="stageName" name="stageName" required placeholder="e.g. DJ Nova"/>
+        </div>
+
+        <div class="form-group">
+          <label for="genre">Primary Genre</label>
+          <input type="text" id="genre" name="genre" required placeholder="e.g. Afrobeat, Hip-Hop"/>
+        </div>
+
+        <div class="form-group">
+          <label for="bio">Short Bio</label>
+          <textarea id="bio" name="bio" rows="4" required placeholder="Introduce yourself..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="portfolioLink">Portfolio / Linktree / Socials</label>
+          <input type="url" id="portfolioLink" name="portfolioLink" required placeholder="https://..."/>
+        </div>
+
+        <div class="form-options">
+          <label class="checkbox-container">
+            <input type="checkbox" required />
+            <span class="checkmark"></span>
+            I agree to EventHub's SafeZone policy and performer guidelines.
+          </label>
+        </div>
+
+        <button type="submit" class="auth-btn">Submit Verification</button>
+      </form>
+
+      <div class="auth-footer">
+        <p>Already verified? <a href="artist.html">Go to your Dashboard</a></p>
+      </div>
+    </div>
+
+    <div class="auth-background">
+      <div class="floating-element"></div>
+      <div class="floating-element"></div>
+      <div class="floating-element"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="authModal">
+    <div class="modal-content">
+      <span class="close-modal" onclick="closeModal()">&times;</span>
+      <div class="modal-body">
+        <div class="modal-icon" id="modalIcon"></div>
+        <h3 id="modalTitle"></h3>
+        <p id="modalMessage"></p>
+        <button class="modal-btn" id="modalBtn" onclick="closeModal()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="ArtistVerification.js"></script>
+</body>
+</html>

@@ -2,6 +2,9 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const Refund = require('./models/Refund');
+const Expense = require('./models/Expense');
+const Payout = require('./models/Payout');
 
 // Import models
 const Organizer = require('./models/Organizer');
@@ -353,6 +356,70 @@ router.get('/applications', async (req, res) => {
   } catch (error) {
     console.error('Error fetching applications:', error);
     res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Get refund history for current organizer
+router.get('/api/finance/refunds', async (req, res) => {
+  try {
+    const organizer = await Organizer.findOne({ userId: req.user.userId });
+    if (!organizer) return res.status(404).json({ success: false, message: 'Organizer not found' });
+
+    const events = await Event.find({ organizerId: organizer._id }).select('_id');
+    const eventIds = events.map(e => e._id);
+
+    const refunds = await Refund.find({ eventId: { $in: eventIds } })
+      .populate('userId', 'email')
+      .sort({ requestedAt: -1 });
+
+    const data = refunds.map(r => ({
+      date: r.requestedAt,
+      userEmail: r.userId?.email || 'N/A',
+      amount: r.amount,
+      status: r.status
+    }));
+
+    res.json({ success: true, refunds: data });
+  } catch (err) {
+    console.error('Error fetching refunds:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch refunds' });
+  }
+});
+
+// Get expense log for current organizer
+router.get('/api/finance/expenses', async (req, res) => {
+  try {
+    const organizer = await Organizer.findOne({ userId: req.user.userId });
+    if (!organizer) return res.status(404).json({ success: false, message: 'Organizer not found' });
+
+    const expenses = await Expense.find({ organizerId: organizer._id }).sort({ date: -1 });
+
+    res.json({ success: true, expenses });
+  } catch (err) {
+    console.error('Error fetching expenses:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch expenses' });
+  }
+});
+
+// Get payout history for current organizer
+router.get('/api/finance/payouts', async (req, res) => {
+  try {
+    const organizer = await Organizer.findOne({ userId: req.user.userId });
+    if (!organizer) return res.status(404).json({ success: false, message: 'Organizer not found' });
+
+    const payouts = await Payout.find({ organizerId: organizer._id }).sort({ createdAt: -1 });
+
+    const data = payouts.map(p => ({
+      date: p.requestedAt,
+      amount: p.amount,
+      method: p.method,
+      status: p.status
+    }));
+
+    res.json({ success: true, payouts: data });
+  } catch (err) {
+    console.error('Error fetching payouts:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch payouts' });
   }
 });
 

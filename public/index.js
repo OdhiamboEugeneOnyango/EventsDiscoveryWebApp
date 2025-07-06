@@ -3,48 +3,59 @@ let currentEvents = [];
 
 // DOMContentLoaded event
 document.addEventListener('DOMContentLoaded', () => {
+    // Load events and initialize UI
     loadEvents();
     setupRoleAwareUI();
 
-    // Set up search/filter event listeners
-    document.getElementById('searchInput').addEventListener('input', performSearch);
-    document.getElementById('category').addEventListener('change', performSearch);
-    document.getElementById('location').addEventListener('change', performSearch);
-    document.getElementById('date').addEventListener('change', performSearch);
-    document.getElementById('price').addEventListener('change', performSearch);
+    // Search/filter event listeners
+    document.getElementById('searchInput')?.addEventListener('input', performSearch);
+    document.getElementById('category')?.addEventListener('change', performSearch);
+    document.getElementById('location')?.addEventListener('change', performSearch);
+    document.getElementById('date')?.addEventListener('change', performSearch);
+    document.getElementById('price')?.addEventListener('change', performSearch);
+
+    
+
+    if (token && currentRole) {
+        // Logged in: hide auth buttons, show profile dropdown
+        if (authButtons) authButtons.style.display = 'none';
+        if (profileDropdown) profileDropdown.style.display = 'block';
+    } else {
+        // Not logged in: show auth buttons, hide dropdown
+        if (authButtons) authButtons.style.display = 'flex';
+        if (profileDropdown) profileDropdown.style.display = 'none';
+    }
 });
+
 
 // Show/hide login/signup or profile dropdown based on auth
 function setupRoleAwareUI() {
-    const token = localStorage.getItem('eventhub_token') || sessionStorage.getItem('eventhub_token');
+    const token = localStorage.getItem('authToken');
     const currentRole = localStorage.getItem('currentRole');
     const isLoggedIn = !!token;
 
     const authButtons = document.querySelector('.auth-buttons');
     const profileDropdown = document.getElementById('profileDropdown');
-    const artistLink = document.querySelector('.artist-link');
-    const organizerLink = document.querySelector('.organizer-link');
 
-    if (isLoggedIn && currentRole) {
-        authButtons.style.display = 'none';
-        profileDropdown.style.display = 'inline-block';
+    // Role switch links
+    const switchToUser = document.querySelector('a[onclick*="switchRole(\'user\')"]');
+    const switchToArtist = document.querySelector('a[onclick*="switchRole(\'artist\')"]');
+    const switchToOrganizer = document.querySelector('a[onclick*="switchRole(\'organizer\')"]');
 
-        if (currentRole === 'artist') {
-            artistLink.style.display = 'inline-block';
-            organizerLink.style.display = 'none';
-        } else if (currentRole === 'organizer') {
-            organizerLink.style.display = 'inline-block';
-            artistLink.style.display = 'none';
-        } else {
-            // Attendees or admins may see both options if needed
-            artistLink.style.display = 'inline-block';
-            organizerLink.style.display = 'inline-block';
-        }
+    if (token && currentRole) {
+        // Hide login/signup
+        if (authButtons) authButtons.style.display = 'none';
+        if (profileDropdown) profileDropdown.style.display = 'block';
+
+        // Show/hide switch options based on role
+        if (switchToUser)     switchToUser.style.display     = currentRole === 'user'     ? 'none' : 'block';
+        if (switchToArtist)   switchToArtist.style.display   = currentRole === 'artist'   ? 'none' : 'block';
+        if (switchToOrganizer) switchToOrganizer.style.display = currentRole === 'organizer' ? 'none' : 'block';
+
     } else {
-        authButtons.style.display = 'flex';
-        profileDropdown.style.display = 'none';
-        artistLink.style.display = 'none';
-        organizerLink.style.display = 'none';
+        // Show login/signup
+        if (authButtons) authButtons.style.display = 'flex';
+        if (profileDropdown) profileDropdown.style.display = 'none';
     }
 }
 

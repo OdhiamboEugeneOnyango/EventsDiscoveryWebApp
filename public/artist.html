@@ -1,176 +1,376 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Artist Profile - [Artist Name]</title>
-    <link rel="stylesheet" href="artist.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Artist Profile - [Artist Name]</title>
+  <link rel="stylesheet" href="artist.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
 </head>
 <body>
-    <header>
-        <nav class="container">
-             <div class="logo">EventHub</div> 
-            <ul class="nav-links">
-                <li><a href="events.html">Events</a></li>
-                <li class="organizer-link" style="display:none;"><a href="organizer.html">Organizer</a></li>        
-                <li><a href="memories.html">Memories</a></li>
-                <li><a href="vibespace.html">VibeSpace</a></li>
-                <li><a href="safezone.html">SafeZone</a></li>         
-                <li><a href="profile.html">Profile</a></li>
-            </ul>
-            <div class="auth-buttons">
-                <a href="login.html" class="btn btn-secondary">Sign In</a>
-                <a href="signUp.html" class="btn btn-primary">Register</a>
-            </div>
-            <div class="profile-dropdown" id="profileDropdown" style="display:none;">
-            <button class="btn btn-primary" onclick="toggleDropdown()">Profile ▾</button>
-            <div class="dropdown-menu" id="dropdownMenu" style="display:none;">
-                <a onclick="switchRole('user')">Switch to Attending</a>
-                <a onclick="switchRole('artist')">Switch to Performing</a>
-                <a href="profile.html">View Profile</a>
-            </div>
-            </div> 
-        </nav>
-    </header>
+  <!-- HEADER -->
+  <header>
+    <nav class="container">
+      <div class="logo">EventHub</div>
+      <ul class="nav-links">
+        <li><a href="events.html">Events</a></li>
+        <li class="organizer-link" style="display:none;"><a href="organizer.html">Organizer</a></li>        
+        <li><a href="memories.html">Memories</a></li>
+        <li><a href="vibespace.html">VibeSpace</a></li>
+        <li><a href="safezone.html">SafeZone</a></li>
+        <li><a href="ArtistVerification.html">Become a Verified Artist✅</a></li>        
+        <li><a href="profile.html">Profile</a></li>
+      </ul>
 
-    <main>
-        <!-- Artist Selection Dropdown -->
-        <section class="artist-selector">
-            <div class="container">
-                <div class="artist-selector-content">
-                    <label for="artistSelect" class="selector-label">
-                        <i class="fas fa-palette"></i> Explore Artist:
-                    </label>
-                    <select id="artistSelect" class="artist-dropdown">
-                        <option value="">Select an artist...</option>
-                    </select>
-                    <div class="loading-spinner" id="loadingSpinner" style="display: none;">
-                        <i class="fas fa-spinner fa-spin"></i>
-                    </div>
-                </div>
-            </div>
-        </section>
+      <div class="auth-buttons">
+        <a href="login.html" class="btn btn-secondary">Sign In</a>
+        <a href="signUp.html" class="btn btn-primary">Register</a>
+      </div>
 
-        <section class="hero artist-hero">
-            <div class="hero-bg-overlay"></div>
-            <div class="container">
-                <img src="https://via.placeholder.com/150" alt="Artist Profile Picture" class="artist-profile-pic">
-                <h1 id="artistName">Select an Artist</h1>
-                <p id="artistBio">Choose an artist from the dropdown above to view their profile, upcoming events, merchandise, and art gallery.</p>
-                <div class="social-links">
-                    <!-- Social links will be populated dynamically -->
-                </div>
-            </div>
-        </section>
-
-        <nav class="artist-nav">
-            <div class="container">
-                <ul class="artist-nav-links">
-                    <li><a href="#about">About</a></li>
-                    <li><a href="#merchandise">Merchandise</a></li>
-                    <li><a href="#events">Upcoming Events</a></li>
-                    <li><a href="#gallery">Art Gallery</a></li>
-                    <li><a href="#contact">Contact</a></li>
-                </ul>
-            </div>
-        </nav>
-
-        <section id="merchandise" class="section merchandise-section container">
-            <h2 class="section-title">Merchandise</h2>
-            <button id="addMerchandiseBtn" class="btn btn-primary add-item-btn" style="display: none;">
-                <i class="fas fa-plus"></i> Add New Merchandise
-            </button>
-            
-            <div id="addMerchandiseFormContainer" class="add-form-container hidden">
-                <h3>Add New Merchandise Item</h3>
-                <form id="merchandiseForm" class="item-form">
-                    <input type="text" id="merchName" placeholder="Merchandise Name" required>
-                    <textarea id="merchDescription" placeholder="Description" rows="3"></textarea>
-                    <input type="number" id="merchPrice" placeholder="Price" step="0.01" min="0" required>
-                    <input type="text" id="merchImage" placeholder="Image URL (e.g., https://via.placeholder.com/400x300)" required>
-                    <button type="submit" class="btn btn-primary">Add Item</button>
-                    <button type="button" class="btn btn-secondary cancel-btn">Cancel</button>
-                </form>
-            </div>
-
-            <div class="merchandise-grid">
-                <div class="no-content-message">
-                    <i class="fas fa-shopping-bag"></i>
-                    <p>Select an artist to view their merchandise</p>
-                </div>
-            </div>
-        </section>
-
-        <section id="events" class="section events-section container">
-            <h2 class="section-title">Upcoming Events</h2>
-            <button id="addEventBtn" class="btn btn-primary add-item-btn" style="display: none;">
-                <i class="fas fa-plus"></i> Add New Event
-            </button>
-
-            <div id="addEventFormContainer" class="add-form-container hidden">
-                <h3>Add New Upcoming Event</h3>
-                <form id="eventForm" class="item-form">
-                    <input type="text" id="eventTitle" placeholder="Event Title" required>
-                    <input type="date" id="eventDate" required>
-                    <input type="text" id="eventLocation" placeholder="Location" required>
-                    <input type="text" id="eventTime" placeholder="Time (e.g., 7:00 PM - 10:00 PM)" required>
-                    <input type="url" id="eventTicketLink" placeholder="Ticket Link (URL)">
-                    <button type="submit" class="btn btn-primary">Add Event</button>
-                    <button type="button" class="btn btn-secondary cancel-btn">Cancel</button>
-                </form>
-            </div>
-
-            <div class="events-list">
-                <div class="no-content-message">
-                    <i class="fas fa-calendar-alt"></i>
-                    <p>Select an artist to view their upcoming events</p>
-                </div>
-            </div>
-        </section>
-
-        <section id="gallery" class="section gallery-section container">
-            <h2 class="section-title">Art Gallery</h2>
-            <button id="addGalleryBtn" class="btn btn-primary add-item-btn" style="display: none;">
-                <i class="fas fa-plus"></i> Add New Art Piece
-            </button>
-            
-            <div id="addGalleryFormContainer" class="add-form-container hidden">
-                <h3>Add New Art Gallery Item</h3>
-                <form id="galleryForm" class="item-form">
-                    <input type="text" id="artTitle" placeholder="Art Title" required>
-                    <textarea id="artDescription" placeholder="Description" rows="3"></textarea>
-                    <input type="text" id="artImage" placeholder="Image URL (e.g., https://via.placeholder.com/600x400)" required>
-                    <button type="submit" class="btn btn-primary">Add Item</button>
-                    <button type="button" class="btn btn-secondary cancel-btn">Cancel</button>
-                </form>
-            </div>
-
-            <div class="gallery-grid">
-                <div class="no-content-message">
-                    <i class="fas fa-images"></i>
-                    <p>Select an artist to view their art gallery</p>
-                </div>
-            </div>
-        </section>
-
-        <section id="contact" class="section contact-section container">
-            <h2 class="section-title">Get in Touch</h2>
-            <div id="contactContent">
-                <div class="no-content-message">
-                    <i class="fas fa-envelope"></i>
-                    <p>Select an artist to send them a message</p>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <footer>
-        <div class="container">
-            <p>&copy; 2025 EventHub. All rights reserved.| <a href="safezone.html#lost-found" style="color: #667eea;">Lost & Found</a> | <a href="safezone.html" style="color: #667eea;">Safety Center</a></p>
+      <div class="profile-dropdown" id="profileDropdown" style="display: none;">
+        <button class="btn btn-primary profile-toggle" onclick="toggleDropdown()">Profile ▾</button>
+        <div class="dropdown-menu" id="dropdownMenu" style="display: none;">
+          <a onclick="switchRole('user')">Switch to Attendee</a>
+          <a onclick="switchRole('organizer')">Switch to Organizer</a>
+          <a onclick="switchRole('artist')">Switch to Performer</a>
+          <a href="profile.html">View Profile</a>
+          <a href="#" onclick="logout()">Logout</a>
         </div>
-    </footer>
+      </div>
+    </nav>
+  </header>
 
-    <script src="artist.js"></script>
+  <!-- MAIN CONTENT -->
+<main>
+  <!-- ARTIST SELECTOR -->
+  <section class="artist-selector" id="artistSelectorSection">
+    <div class="container">
+      <div class="artist-selector-content">
+        <label for="artistSelect" class="selector-label">
+          <i class="fas fa-palette"></i> Explore Artist:
+        </label>
+        <select id="artistSelect" class="artist-dropdown">
+          <option value="">Select an artist...</option>
+        </select>
+        <div class="loading-spinner" id="loadingSpinner" style="display: none;">
+          <i class="fas fa-spinner fa-spin"></i>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HERO SECTION -->
+  <section class="hero artist-hero">
+    <div class="hero-bg-overlay"></div>
+    <div class="container">
+      <img
+        src="https://via.placeholder.com/150"
+        alt="Artist Profile Picture"
+        class="artist-profile-pic"
+        id="artistProfilePic"
+      />
+      <h1 id="artistName">Select an Artist</h1>
+      <p id="artistBio">
+        Choose an artist from the dropdown above to view their profile, upcoming events, merchandise, and art gallery.
+      </p>
+      <div class="social-links" id="artistSocialLinks"></div>
+    </div>
+  </section>
+</main>
+    <!-- NAVIGATION -->
+    <nav class="artist-nav">
+      <div class="container">
+        <ul class="artist-nav-links">
+          <li><a href="#about">About</a></li>
+          <li><a href="#merchandise">Merchandise</a></li>
+          <li><a href="#events">Upcoming Events</a></li>
+          <li><a href="#gallery">Art Gallery</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- MERCHANDISE -->
+    <section id="merchandise" class="section merchandise-section container">
+      <h2 class="section-title">Merchandise</h2>
+      <button id="addMerchandiseBtn" class="btn btn-primary add-item-btn" style="display: none;">
+        <i class="fas fa-plus"></i> Add New Merchandise
+      </button>
+
+      <div id="addMerchandiseFormContainer" class="add-form-container hidden">
+        <h3>Add New Merchandise Item</h3>
+        <form id="merchandiseForm" class="item-form">
+          <input type="text" id="merchName" placeholder="Merchandise Name" required />
+          <textarea id="merchDescription" placeholder="Description" rows="3"></textarea>
+          <input type="number" id="merchPrice" placeholder="Price" step="0.01" min="0" required />
+          <input type="text" id="merchImage" placeholder="Image URL (e.g., https://via.placeholder.com/400x300)" required />
+          <button type="submit" class="btn btn-primary">Add Item</button>
+          <button type="button" class="btn btn-secondary cancel-btn">Cancel</button>
+        </form>
+      </div>
+
+      <div class="merchandise-grid">
+        <div class="no-content-message">
+          <i class="fas fa-shopping-bag"></i>
+          <p>Select an artist to view their merchandise</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- EVENTS -->
+    <section id="events" class="section events-section container">
+      <h2 class="section-title">Upcoming Events</h2>
+      <button id="addEventBtn" class="btn btn-primary add-item-btn" style="display: none;">
+        <i class="fas fa-plus"></i> Add New Event
+      </button>
+
+      <div id="addEventFormContainer" class="add-form-container hidden">
+        <h3>Add New Upcoming Event</h3>
+        <form id="eventForm" class="item-form">
+          <input type="text" id="eventTitle" placeholder="Event Title" required />
+          <input type="date" id="eventDate" required />
+          <input type="text" id="eventLocation" placeholder="Location" required />
+          <input type="text" id="eventTime" placeholder="Time (e.g., 7:00 PM - 10:00 PM)" required />
+          <input type="url" id="eventTicketLink" placeholder="Ticket Link (URL)" />
+          <button type="submit" class="btn btn-primary">Add Event</button>
+          <button type="button" class="btn btn-secondary cancel-btn">Cancel</button>
+        </form>
+      </div>
+
+      <div class="events-list">
+        <div class="no-content-message">
+          <i class="fas fa-calendar-alt"></i>
+          <p>Select an artist to view their upcoming events</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- GALLERY -->
+    <section id="gallery" class="section gallery-section container">
+      <h2 class="section-title">Art Gallery</h2>
+      <button id="addGalleryBtn" class="btn btn-primary add-item-btn" style="display: none;">
+        <i class="fas fa-plus"></i> Add New Art Piece
+      </button>
+
+      <div id="addGalleryFormContainer" class="add-form-container hidden">
+        <h3>Add New Art Gallery Item</h3>
+        <form id="galleryForm" class="item-form">
+          <input type="text" id="artTitle" placeholder="Art Title" required />
+          <textarea id="artDescription" placeholder="Description" rows="3"></textarea>
+          <input type="text" id="artImage" placeholder="Image URL (e.g., https://via.placeholder.com/600x400)" required />
+          <button type="submit" class="btn btn-primary">Add Item</button>
+          <button type="button" class="btn btn-secondary cancel-btn">Cancel</button>
+        </form>
+      </div>
+
+      <div class="gallery-grid">
+        <div class="no-content-message">
+          <i class="fas fa-images"></i>
+          <p>Select an artist to view their art gallery</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTACT -->
+    <section id="contact" class="section contact-section container">
+      <h2 class="section-title">Get in Touch</h2>
+      <div id="contactContent">
+        <div class="no-content-message">
+          <i class="fas fa-envelope"></i>
+          <p>Select an artist to send them a message</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container">
+      <p>&copy; 2025 EventHub. All rights reserved. | <a href="safezone.html#lost-found" style="color: #667eea;">Lost & Found</a> | <a href="safezone.html" style="color: #667eea;">Safety Center</a></p>
+    </div>
+  </footer>
+
+  <script src="artist.js"></script>
+  <script>
+function toggleDropdown() {
+  const menu = document.getElementById('dropdownMenu');
+  menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+}
+
+function switchRole(role) {
+  localStorage.setItem('currentRole', role);
+  const redirects = {
+    user: 'index.html',
+    artist: 'artist.html',
+    organizer: 'organizer.html'
+  };
+  window.location.href = redirects[role];
+}
+
+function logout() {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('currentRole');
+  window.location.href = 'index.html';
+}
+
+function getAuthToken() {
+  return localStorage.getItem('authToken');
+}
+
+// ===============================
+// Load own artist profile data
+// ===============================
+
+async function loadOwnArtistProfile() {
+  try {
+    const res = await fetch('/api/auth/verify', {
+      headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+    });
+    const data = await res.json();
+
+    if (!data.success || !data.artist) return;
+
+    const artist = data.artist;
+
+    // ✅ Update Hero
+    document.getElementById('artistName').textContent = artist.stageName || 'Your Artist Name';
+    document.getElementById('artistBio').textContent = artist.bio || 'No bio provided yet.';
+    document.querySelector('.artist-profile-pic').src = artist.profilePicture || 'https://via.placeholder.com/150';
+
+    // ✅ Replace fallback "Select an artist..." text blocks
+    const fallbackMsgs = document.querySelectorAll('.no-content-message');
+    fallbackMsgs.forEach(msg => msg.style.display = 'none');
+
+    // ✅ Social Links
+    const socials = document.querySelector('.social-links');
+    socials.innerHTML = ''; // clear existing
+    if (artist.instagram) {
+      socials.innerHTML += <a href="${artist.instagram}" target="_blank"><i class="fab fa-instagram"></i></a>;
+    }
+    if (artist.twitter) {
+      socials.innerHTML += <a href="${artist.twitter}" target="_blank"><i class="fab fa-twitter"></i></a>;
+    }
+
+  } catch (err) {
+    console.error('Error loading artist profile:', err);
+  }
+}
+
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const currentRole = localStorage.getItem('currentRole');
+  const authToken = getAuthToken();
+
+  // Toggle dropdown and auth buttons
+  if (authToken) {
+    document.querySelector('.auth-buttons').style.display = 'none';
+    document.getElementById('profileDropdown').style.display = 'inline-block';
+  }
+
+  // Artist dashboard view
+  if (currentRole === 'artist') {
+    // Hide selector
+    const selectorSection = document.querySelector('.artist-selector');
+    if (selectorSection) selectorSection.style.display = 'none';
+
+    // Show buttons for adding/editing
+    document.getElementById('addMerchandiseBtn').style.display = 'inline-block';
+    document.getElementById('addEventBtn').style.display = 'inline-block';
+    document.getElementById('addGalleryBtn').style.display = 'inline-block';
+
+    // Load their profile directly
+    await loadOwnArtistProfile();
+  }
+});
+</script>
+  <script>
+function toggleDropdown() {
+  const menu = document.getElementById('dropdownMenu');
+  menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+}
+
+function switchRole(role) {
+  localStorage.setItem('currentRole', role);
+  const redirects = {
+    user: 'index.html',
+    artist: 'artist.html',
+    organizer: 'organizer.html'
+  };
+  window.location.href = redirects[role];
+}
+
+function logout() {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('currentRole');
+  window.location.href = 'index.html';
+}
+
+function getAuthToken() {
+  return localStorage.getItem('authToken');
+}
+
+// ✅ Load logged-in artist profile
+async function loadOwnArtistProfile() {
+  try {
+    const res = await fetch('/api/auth/verify', {
+      headers: { Authorization: `Bearer ${getAuthToken()}` }
+    });
+    const data = await res.json();
+    if (!data.success || !data.artist) return;
+
+    const artist = data.artist;
+
+    // Hero section
+    document.getElementById('artistName').textContent = artist.stageName || 'Your Artist Name';
+    document.getElementById('artistBio').textContent = artist.bio || 'No bio provided yet.';
+    document.getElementById('artistProfilePic').src = artist.profilePicture || 'https://via.placeholder.com/150';
+
+    // Social links
+    const socialLinks = document.getElementById('artistSocialLinks');
+    socialLinks.innerHTML = '';
+    if (artist.instagram) {
+      socialLinks.innerHTML += <a href="${artist.instagram}" target="_blank"><i class="fab fa-instagram"></i></a>;
+    }
+    if (artist.twitter) {
+      socialLinks.innerHTML += <a href="${artist.twitter}" target="_blank"><i class="fab fa-twitter"></i></a>;
+    }
+
+    // Hide fallback content
+    document.querySelectorAll('.no-content-message').forEach(div => {
+      div.style.display = 'none';
+    });
+
+  } catch (err) {
+    console.error('Failed to load artist profile:', err);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const currentRole = localStorage.getItem('currentRole');
+  const authToken = getAuthToken();
+
+  // Toggle login/signup vs profile dropdown
+  if (authToken) {
+    const authBtns = document.querySelector('.auth-buttons');
+    const profileDD = document.getElementById('profileDropdown');
+    if (authBtns) authBtns.style.display = 'none';
+    if (profileDD) profileDD.style.display = 'inline-block';
+  }
+
+  if (currentRole === 'artist') {
+    // Hide artist selector dropdown
+    const selector = document.getElementById('artistSelectorSection');
+    if (selector) selector.style.display = 'none';
+
+    // Show action buttons
+    document.getElementById('addMerchandiseBtn').style.display = 'inline-block';
+    document.getElementById('addEventBtn').style.display = 'inline-block';
+    document.getElementById('addGalleryBtn').style.display = 'inline-block';
+
+    // Load own artist profile
+    await loadOwnArtistProfile();
+  }
+});
+</script>
 </body>
 </html>

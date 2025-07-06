@@ -29,8 +29,9 @@
       <div class="profile-dropdown" id="profileDropdown" style="display: none;">
         <button class="btn btn-primary profile-toggle" onclick="toggleDropdown()">Profile ▾</button>
         <div class="dropdown-menu" id="dropdownMenu" style="display: none;">
-          <a onclick="switchRole('user')">Switch to Attending</a>
-          <a onclick="switchRole('artist')">Switch to Performing</a>
+          <a onclick="switchRole('user')">Switch to Attendee</a>
+          <a onclick="switchRole('organizer')" style="display: none;">Switch to Organizer</a>
+          <a onclick="switchRole('artist')">Switch to Performer</a>
           <a href="profile.html">View Profile</a>
           <a href="#" onclick="logout()">Logout</a>
         </div>

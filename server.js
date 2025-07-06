@@ -8,6 +8,8 @@ const safezoneRoutes = require('./safezonebackend');
 const organizerRoutes = require('./organizerbackend');
 const artistRoutes = require('./artistbackend');
 const vibespaceRoutes = require('./vibespacebackend');
+const verifyOrganizerRoute = require('./verifyOrganizer');
+const verifyArtistRoute = require('./verifyArtist');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
@@ -39,6 +41,8 @@ app.use(artistRoutes);
 app.use(organizerRoutes);
 app.use(vibespaceRoutes);
 app.use(eventsRoutes); // Use event backend routes
+app.use('/api/verify/artist', verifyArtistRoute);
+app.use('/api/verify/organizer', verifyOrganizerRoute);
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/eventhub';
@@ -464,7 +468,7 @@ const getUserProfile = async (req, res) => {
 };
 
 // 🔁 Reuse this for both routes
-app.get('/api/auth/profile', getUserProfile);
+
 app.get('/api/auth/me', getUserProfile); // For vibespace.js and others
 
 
@@ -923,32 +927,47 @@ app.get('/api/auth/profile', async (req, res) => {
                 message: 'No token provided'
             });
         }
-        
+
         const decoded = jwt.verify(token, JWT_SECRET);
         const user = await User.findById(decoded.userId).select('-password');
-        
+
         if (!user) {
             return res.status(404).json({
                 success: false,
                 message: 'User not found'
             });
         }
-        
+
+        // Initialize placeholders
+        let artistData = null;
+        let organizerData = null;
+
+        // ✅ Correct field: user (not userId)
+        if (user.roles.includes('artist')) {
+            artistData = await Artist.findOne({ user: user._id });
+        }
+
+        if (user.roles.includes('organizer')) {
+            organizerData = await Organizer.findOne({ user: user._id });
+        }
+
         res.json({
             success: true,
-            user
+            user,
+            artistData,
+            organizerData
         });
-        
+
     } catch (error) {
         console.error('Profile error:', error);
-        
+
         if (error.name === 'JsonWebTokenError') {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid token'
             });
         }
-        
+
         res.status(500).json({
             success: false,
             message: 'Server error occurred'

@@ -3,9 +3,6 @@
 // API Base URL
 const API_BASE_URL = 'http://localhost:3000/api';
 
-// profile.js (frontend)
-const authToken = getAuthToken(); // instead of localStorage.getItem('authToken')
-
 
 async function checkAuth() {
   if (!authToken) {
@@ -39,19 +36,39 @@ async function loadProfile() {
     const response = await fetch('/api/auth/profile', {
       headers: { 'Authorization': `Bearer ${getAuthToken()}` }
     });
-    
+
     const data = await response.json();
-    
-    // Set the current role in your UI
-    const defaultRole = data.user.roles.includes('organizer') ? 'organizer' : 
-                       data.user.roles.includes('artist') ? 'artist' : 'user';
-    setCurrentRole(defaultRole);
-    
-    // Render profile with all data
-    renderProfile(data.user, data.artistData, data.organizerData);
-  } catch (error) {
-    console.error('Failed to load profile:', error);
+    console.log('🔍 Backend profile response:', data);
+
+    if (!data.success || !data.user) {
+      throw new Error('User data not found or invalid response');
+    }
+
+    // 🧠 Set role only if not already set
+    const savedRole = getCurrentRole();
+    const defaultRole = data.user.roles.includes('organizer') ? 'organizer' :
+                        data.user.roles.includes('artist') ? 'artist' : 'user';
+
+    // Only override currentRole if needed
+    if (!savedRole || !data.user.roles.includes(savedRole)) {
+      setCurrentRole(defaultRole);
+    }
+
+    // ✅ Now populate the UI (HTML should be rendered already!)
+    populateUserProfile(data.user, data.artistData, data.organizerData);
+
+  } catch (err) {
+    console.error('🚫 Error fetching profile:', err);
+    showNotification('Failed to load profile data.', 'error');
   }
+
+  const form = document.getElementById('profileForm');
+if (form) {
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    updateUserProfile();
+  });
+}
 }
 
 // Login form handler
@@ -145,20 +162,19 @@ async function getCurrentUser() {
 // Enhanced populateUserProfile with role-based support
 function populateUserProfile(user, artistData = null, organizerData = null) {
     console.log('Populating UI with user data:', { user, artistData, organizerData });
-    
+
     try {
-        // Update header information
+        // Header info (like name, email, location)
         updateProfileHeader(user);
-        
-        // Update stats
+
+        // Stats (events attended, organized, etc.)
         updateProfileStats(user);
-        
-        // Populate base profile form fields
+
+        // Base profile form (name, email, phone, etc.)
         populateBaseProfileFields(user);
-        
-        // Populate role-specific fields based on current role
+
         const currentRole = getCurrentRole();
-        
+
         switch(currentRole) {
             case 'artist':
                 if (artistData) populateArtistFields(artistData);
@@ -167,20 +183,18 @@ function populateUserProfile(user, artistData = null, organizerData = null) {
                 if (organizerData) populateOrganizerFields(organizerData);
                 break;
             case 'admin':
-                // Admin-specific fields could be added here
+                // Add admin-specific UI population if needed
                 break;
         }
-        
-        // Update preferences if available
+
         if (user.interests) {
             updateUserPreferences(user.interests);
             renderPreferences();
         }
-        
-        console.log('UI populated successfully with role:', currentRole);
-        
+
+        console.log('✅ UI populated successfully for role:', currentRole);
     } catch (error) {
-        console.error('Error populating UI:', error);
+        console.error('❌ Error populating UI:', error);
         showNotification('Error displaying profile data', 'error');
     }
 }
@@ -188,35 +202,53 @@ function populateUserProfile(user, artistData = null, organizerData = null) {
 // Helper functions for modularity:
 
 function updateProfileHeader(user) {
-    const userName = document.getElementById('userName');
-    const userEmail = document.getElementById('userEmail');
-    const userLocation = document.getElementById('userLocation');
-    
-    if (userName) {
-        userName.textContent = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User';
+    const nameElement = document.getElementById('userName') || 
+                        document.getElementById('orgName') || 
+                        document.getElementById('artistName') || 
+                        document.getElementById('adminName');
+
+    const emailElement = document.getElementById('userEmail') || 
+                         document.getElementById('orgContact') || 
+                         document.getElementById('adminEmail');
+
+    const locationElement = document.getElementById('userLocation') || 
+                            document.getElementById('orgLocation') || 
+                            document.getElementById('artistLocation');
+
+    if (nameElement) {
+        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        nameElement.textContent = fullName || user.name || 'User';
     }
-    
-    if (userEmail) {
-        userEmail.textContent = user.email || '';
+
+    if (emailElement) {
+        emailElement.textContent = user.email || user.contactEmail || 'Email not provided';
     }
-    
-    if (userLocation) {
-        const displayLocation = user.location ? 
-            user.location.charAt(0).toUpperCase() + user.location.slice(1) : 'Not specified';
-        userLocation.textContent = `📍 ${displayLocation}`;
+
+    if (locationElement) {
+        const displayLocation = user.location || user.orgLocation || user.artistLocation || 'Not specified';
+        locationElement.textContent = `📍 ${displayLocation.charAt(0).toUpperCase()}${displayLocation.slice(1)}`;
     }
 }
 
 function updateProfileStats(user) {
     const stats = {
-        'eventsAttended': user.eventsAttended || '0',
-        'eventsInterested': user.eventsInterested || '0',
-        'reviewsWritten': user.reviewsWritten || '0'
+        'eventsAttended': user.eventsAttended,
+        'eventsInterested': user.eventsInterested,
+        'reviewsWritten': user.reviewsWritten,
+        'eventsOrganized': user.eventsOrganized,
+        'totalAttendees': user.totalAttendees,
+        'orgRating': user.orgRating,
+        'performances': user.performances,
+        'merchItems': user.merchItems,
+        'artistRating': user.artistRating,
+        'totalUsers': user.totalUsers,
+        'totalEvents': user.totalEvents,
+        'reports': user.reports
     };
-    
+
     Object.entries(stats).forEach(([id, value]) => {
-        const element = document.getElementById(id);
-        if (element) element.textContent = value;
+        const el = document.getElementById(id);
+        if (el) el.textContent = value !== undefined ? value : '0';
     });
 }
 
@@ -227,28 +259,34 @@ function populateBaseProfileFields(user) {
         'email': user.email || '',
         'phone': user.phone || '',
         'location': user.location || '',
-        'role': user.roles?.[0] || 'user', // Use first role if available
-        'dateOfBirth': formatDateForInput(user.dateOfBirth) || '',
+        'role': user.roles?.[0] || 'user',
+        'dateOfBirth': formatDateForInput(user.dateOfBirth),
         'bio': user.bio || '',
-        'newsletter': user.newsletter || false
+        'newsletter': !!user.newsletter
     };
-    
-    Object.entries(formFields).forEach(([fieldId, value]) => {
-        const field = document.getElementById(fieldId);
+
+    Object.entries(formFields).forEach(([id, value]) => {
+        const field = document.getElementById(id);
         if (!field) return;
-        
+
         if (field.type === 'checkbox') {
-            field.checked = value;
+            field.checked = Boolean(value);
         } else {
-            field.value = value;
-            // Make email field editable but with visual distinction
-            if (fieldId === 'email') {
+            field.value = value || '';
+            if (id === 'email') {
                 field.readOnly = false;
                 field.style.backgroundColor = '#f8f8f8';
                 field.style.border = '1px solid #ddd';
             }
         }
     });
+}
+
+// Helper to format date string to YYYY-MM-DD for input[type="date"]
+function formatDateForInput(date) {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toISOString().split('T')[0];
 }
 
 function populateArtistFields(artistData) {
@@ -1102,6 +1140,13 @@ function logoutAllSessions() {
     }
 }
 
+function logout() {
+    localStorage.removeItem('authToken');
+    sessionStorage.removeItem('eventhub_user');
+    localStorage.removeItem('currentRole');
+    window.location.href = 'login.html';
+}
+
 async function downloadData() {
     try {
         showNotification('Preparing your data download...', 'info');
@@ -1296,7 +1341,9 @@ function closeModal() {
 }
 
         // Current role state
-        let currentRole = 'user';
+        function getCurrentRole() {
+  return localStorage.getItem('currentRole') || 'user';
+}
         
         // Initialize the profile view
         function initProfile() {
@@ -1313,90 +1360,115 @@ function closeModal() {
                 option.value = role;
                 option.textContent = getRoleDisplayName(role);
                 roleSelect.appendChild(option);
-            });
+            });}
             
             // Set the initial role
-            switchRole(currentRole);
-        }
-        
-        // Switch between different role profiles
-        function switchRole(role) {
-            currentRole = role;
-            
-            // Update the profile header
-            const profileHeader = document.getElementById('profileHeader');
-            const templateId = `${role}ProfileTemplate`;
-            const template = document.getElementById(templateId);
-            profileHeader.innerHTML = '';
-            profileHeader.appendChild(template.content.cloneNode(true));
-            
-            // Update the tabs
-            const tabNav = document.getElementById('tabNav');
-            const tabTemplateId = `${role}TabsTemplate`;
-            const tabTemplate = document.getElementById(tabTemplateId);
-            tabNav.innerHTML = '';
-            tabNav.appendChild(tabTemplate.content.cloneNode(true));
-            
-            // Update the tab contents
-            const tabContents = document.getElementById('tabContents');
-            const contentTemplateId = `${role}TabContentsTemplate`;
-            const contentTemplate = document.getElementById(contentTemplateId);
-            tabContents.innerHTML = '';
-            tabContents.appendChild(contentTemplate.content.cloneNode(true));
-            
-            // Load role-specific data
-            loadRoleData(role);
-        }
-        
-        // Get display name for a role
-        function getRoleDisplayName(role) {
-            switch(role) {
-                case 'user': return 'Event Attendee';
-                case 'organizer': return 'Event Organizer';
-                case 'artist': return 'Artist/Performer';
-                case 'admin': return 'Administrator';
-                default: return role;
-            }
-        }
-        
-        // Load data specific to the current role
-        function loadRoleData(role) {
-            // In a real app, this would fetch data from the server
-            console.log(`Loading data for ${role} role`);
-            
-            // Simulate loading data
-            setTimeout(() => {
-                // Update profile stats based on role
-                if (role === 'user') {
-                    document.getElementById('eventsAttended').textContent = '12';
-                    document.getElementById('eventsInterested').textContent = '5';
-                    document.getElementById('reviewsWritten').textContent = '8';
-                } else if (role === 'organizer') {
-                    document.getElementById('eventsOrganized').textContent = '7';
-                    document.getElementById('totalAttendees').textContent = '1,245';
-                    document.getElementById('orgRating').textContent = '4.2';
-                } else if (role === 'artist') {
-                    document.getElementById('performances').textContent = '32';
-                    document.getElementById('merchItems').textContent = '5';
-                    document.getElementById('artistRating').textContent = '4.7';
-                } else if (role === 'admin') {
-                    document.getElementById('totalUsers').textContent = '1,542';
-                    document.getElementById('totalEvents').textContent = '287';
-                    document.getElementById('reports').textContent = '12';
-                }
-            }, 500);
-        }
-        
-        // Initialize when the page loads
-        window.onload = async function () {
-        const isAuth = await checkAuth();
-        if (!isAuth) return;
+// Switch between different role profiles
+function switchRole(role, user = null, artistData = null, organizerData = null) {
+    localStorage.setItem('currentRole', role);
+    currentRole = role;
 
-        await loadProfile(); // fetch user + render UI
-        };
+    // Inject templates into the DOM
+    renderProfileContent(role);
+
+    // Load role-specific stats (mock/stats)
+    loadRoleData(role);
+
+    // ✅ Populate user profile AFTER templates have been rendered
+    if (user) {
+        setTimeout(() => {
+            populateUserProfile(user, artistData, organizerData);
+        }, 100);
+    }
+}
+
+// Get display name for a role
+function getRoleDisplayName(role) {
+    switch(role) {
+        case 'user': return 'Event Attendee';
+        case 'organizer': return 'Event Organizer';
+        case 'artist': return 'Artist/Performer';
+        case 'admin': return 'Administrator';
+        default: return role;
+    }
+}
+
+// Load data specific to the current role
+function loadRoleData(role) {
+    console.log(`Loading data for ${role} role`);
+    setTimeout(() => {
+        if (role === 'user') {
+            document.getElementById('eventsAttended').textContent = '12';
+            document.getElementById('eventsInterested').textContent = '5';
+            document.getElementById('reviewsWritten').textContent = '8';
+        } else if (role === 'organizer') {
+            document.getElementById('eventsOrganized').textContent = '7';
+            document.getElementById('totalAttendees').textContent = '1,245';
+            document.getElementById('orgRating').textContent = '4.2';
+        } else if (role === 'artist') {
+            document.getElementById('performances').textContent = '32';
+            document.getElementById('merchItems').textContent = '5';
+            document.getElementById('artistRating').textContent = '4.7';
+        } else if (role === 'admin') {
+            document.getElementById('totalUsers').textContent = '1,542';
+            document.getElementById('totalEvents').textContent = '287';
+            document.getElementById('reports').textContent = '12';
+        }
+    }, 500);
+}
+
+// Initialize when the page loads
+document.addEventListener('DOMContentLoaded', async () => {
+    const isAuth = await checkAuth();
+    if (!isAuth) return;
+
+    try {
+        const response = await fetch('/api/auth/profile', {
+            headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+        });
+
+        const data = await response.json();
+        if (!data.success || !data.user) throw new Error('Invalid profile data');
+
+        const role = localStorage.getItem('currentRole') ||
+                     (data.user.roles.includes('organizer') ? 'organizer' :
+                     data.user.roles.includes('artist') ? 'artist' : 'user');
+
+        localStorage.setItem('currentRole', role);
+
+        // ✅ Inject templates, then populate with user data
+        switchRole(role, data.user, data.artistData, data.organizerData);
+
+        initializeProfileForm();
+        initializePreferences();
+    } catch (err) {
+        console.error('Profile loading failed:', err);
+        showNotification('Failed to load profile data', 'error');
+    }
+});
 
    
-document.getElementById('profileForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    updateUserProfile();
-});
+// document.addEventListener('DOMContentLoaded', () => {
+//     const form = document.getElementById('profileForm');
+//     if (form) {
+//         form.addEventListener('submit', function(e) {
+//             e.preventDefault();
+//             updateUserProfile();
+//         });
+//     }
+// }); 
+
+// window.onload = async function () {
+//   const isAuth = await checkAuth();
+//   if (!isAuth) return;
+
+// //   const userData = await getCurrentUser();
+//   if (!userData) return;
+
+//   const defaultRole = userData.roles.includes('organizer') ? 'organizer' :
+//                       userData.roles.includes('artist') ? 'artist' : 'user';
+//   setCurrentRole(defaultRole);
+
+//   renderProfileContent(defaultRole); // 👈 Load role-specific DOM structure
+//   await loadProfile();               // 👈 Then populate it
+// };

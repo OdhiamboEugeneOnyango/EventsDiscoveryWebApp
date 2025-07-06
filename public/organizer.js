@@ -4,12 +4,44 @@
         let editingEventId = null;
 
         // Initialize page
-        document.addEventListener('DOMContentLoaded', function() {
-            checkAuthentication();
-            loadUserProfile();
-            loadEvents();
-            loadDashboardStats();
-        });
+        document.addEventListener('DOMContentLoaded', async () => {
+    setupRoleAwareUI();
+
+    await checkAuthentication();
+    await loadUserProfile();
+    await loadEvents();
+    await loadDashboardStats();
+});
+
+        function setupRoleAwareUI() {
+    const token = localStorage.getItem('authToken');
+    const currentRole = localStorage.getItem('currentRole');
+    const isLoggedIn = !!token;
+
+    const authButtons = document.querySelector('.auth-buttons');
+    const profileDropdown = document.getElementById('profileDropdown');
+
+    // Role switch links
+    const switchToUser = document.querySelector('a[onclick*="switchRole(\'user\')"]');
+    const switchToArtist = document.querySelector('a[onclick*="switchRole(\'artist\')"]');
+    const switchToOrganizer = document.querySelector('a[onclick*="switchRole(\'organizer\')"]');
+
+    if (token && currentRole) {
+        // Hide login/signup
+        if (authButtons) authButtons.style.display = 'none';
+        if (profileDropdown) profileDropdown.style.display = 'block';
+
+        // Show/hide switch options based on role
+        if (switchToUser)     switchToUser.style.display     = currentRole === 'user'     ? 'none' : 'block';
+        if (switchToArtist)   switchToArtist.style.display   = currentRole === 'artist'   ? 'none' : 'block';
+        if (switchToOrganizer) switchToOrganizer.style.display = currentRole === 'organizer' ? 'none' : 'block';
+
+    } else {
+        // Show login/signup
+        if (authButtons) authButtons.style.display = 'flex';
+        if (profileDropdown) profileDropdown.style.display = 'none';
+    }
+}
 
         // Authentication check
         function checkAuthentication() {
