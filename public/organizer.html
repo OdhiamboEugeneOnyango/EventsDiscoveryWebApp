@@ -17,10 +17,14 @@
                 <li><a href="/applications">Applications</a></li>
                 <li><a href="/profile">Profile</a></li>
             </ul>
-            <div class="user-info">
-                <span id="userName" class="user-name">Loading...</span>
-                <button class="btn btn-danger" onclick="logout()">Logout</button>
-            </div>
+            <div class="profile-dropdown" id="profileDropdown">
+                <button class="btn btn-primary profile-toggle" onclick="toggleDropdown()">Profile ▾</button>
+                <div class="dropdown-menu" id="dropdownMenu" style="display:none;">
+                    <a onclick="switchRole('user')">Switch to Attending</a>
+                    <a onclick="switchRole('artist')">Switch to Performing</a>
+                    <a href="profile.html">View Profile</a>
+                </div>
+            </div> 
         </nav>
     </header>
 
@@ -220,5 +224,30 @@
     </div>
 
     <script src="organizer.js"></script>
+
+    <script>
+  function toggleDropdown() {
+    const menu = document.getElementById('dropdownMenu');
+    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+  }
+
+  function switchRole(role) {
+    localStorage.setItem('currentRole', role);
+    const redirects = {
+      'user': 'index.html',
+      'artist': 'artist.html',
+      'organizer': 'organizer.html'
+    };
+    window.location.href = redirects[role];
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const currentRole = localStorage.getItem('currentRole');
+    if (currentRole !== 'organizer') {
+      window.location.href = 'index.html'; // fallback if user forcefully accesses this page
+    }
+  });
+</script>
 </body>
 </html>
+

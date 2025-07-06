@@ -978,5 +978,89 @@
     </main>
 
     <script src="profile.js"></script>
+
+    <script>
+// ========== Role-Based Profile Initialization ==========
+
+document.addEventListener('DOMContentLoaded', () => {
+    const currentRole = localStorage.getItem('currentRole') || 'user';
+    const roleDropdown = document.getElementById('currentRole');
+
+    // Set dropdown to reflect current role
+    if (roleDropdown) {
+        roleDropdown.value = currentRole;
+        roleDropdown.addEventListener('change', (e) => {
+            localStorage.setItem('currentRole', e.target.value);
+            location.reload();
+        });
+    }
+
+    renderProfileContent(currentRole);
+});
+
+// Render profile content dynamically
+function renderProfileContent(role) {
+    const templates = {
+        user: {
+            header: 'userProfileTemplate',
+            tabs: 'userTabsTemplate',
+            contents: 'userTabContentsTemplate'
+        },
+        organizer: {
+            header: 'organizerProfileTemplate',
+            tabs: 'organizerTabsTemplate',
+            contents: 'organizerTabContentsTemplate'
+        },
+        artist: {
+            header: 'artistProfileTemplate',
+            tabs: 'artistTabsTemplate',
+            contents: 'artistTabContentsTemplate'
+        },
+        admin: {
+            header: 'adminProfileTemplate',
+            tabs: 'adminTabsTemplate',
+            contents: 'adminTabContentsTemplate'
+        }
+    };
+
+    const config = templates[role];
+    if (!config) return;
+
+    // Clear existing content
+    document.getElementById('profileHeader').innerHTML = '';
+    document.getElementById('tabNav').innerHTML = '';
+    document.getElementById('tabContents').innerHTML = '';
+
+    // Load templates
+    ['profileHeader', 'tabNav', 'tabContents'].forEach((section, i) => {
+        const tpl = document.getElementById(Object.values(config)[i]);
+        if (tpl) {
+            const clone = tpl.content.cloneNode(true);
+            document.getElementById(section).appendChild(clone);
+        }
+    });
+
+    // Optional: Set default tab to first
+    const firstTab = document.querySelector('.tab-btn');
+    if (firstTab) firstTab.click();
+}
+
+// ========== Tab Switching Logic (Scoped) ==========
+function showTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    const targetTab = document.getElementById(tabId + 'Tab') || document.getElementById(tabId);
+    if (targetTab) targetTab.classList.add('active');
+
+    const clickedButton = Array.from(document.querySelectorAll('.tab-btn'))
+        .find(btn => btn.getAttribute('onclick')?.includes(tabId));
+    if (clickedButton) clickedButton.classList.add('active');
+}
+</script>
 </body>
-</html>
+</html> 

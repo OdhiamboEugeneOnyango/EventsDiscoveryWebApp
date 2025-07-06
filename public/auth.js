@@ -501,7 +501,7 @@ function redirectBasedOnRole(user) {
 
 // Get current user (for protected pages)
 async function getCurrentUser() {
-    const token = localStorage.getItem('eventhub_token');
+    const token = localStorage.getItem('authToken');
     
     if (!token) {
         return null;
@@ -520,7 +520,7 @@ async function getCurrentUser() {
             return data.user;
         } else {
             // Token is invalid, remove it
-            localStorage.removeItem('eventhub_token');
+            localStorage.removeItem('authToken');
             sessionStorage.removeItem('eventhub_user');
             return null;
         }
@@ -533,7 +533,7 @@ async function getCurrentUser() {
 
 // Logout function
 function logout() {
-    localStorage.removeItem('eventhub_token');
+    localStorage.removeItem('authToken');
     localStorage.removeItem('eventhub_remember');
     sessionStorage.removeItem('eventhub_user');
     window.location.href = 'login.html';
@@ -541,7 +541,7 @@ function logout() {
 
 // Check if user is authenticated
 function isAuthenticated() {
-    return localStorage.getItem('eventhub_token') !== null;
+    return localStorage.getItem('authToken') !== null;
 }
 
 // Toggle password visibility

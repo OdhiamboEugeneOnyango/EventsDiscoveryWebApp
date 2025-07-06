@@ -13,7 +13,7 @@
              <div class="logo">EventHub</div> 
             <ul class="nav-links">
                 <li><a href="events.html">Events</a></li>
-                <li><a href="organizer.html">Organizer</a></li>         
+                <li class="organizer-link" style="display:none;"><a href="organizer.html">Organizer</a></li>        
                 <li><a href="memories.html">Memories</a></li>
                 <li><a href="vibespace.html">VibeSpace</a></li>
                 <li><a href="safezone.html">SafeZone</a></li>         
@@ -23,6 +23,14 @@
                 <a href="login.html" class="btn btn-secondary">Sign In</a>
                 <a href="signUp.html" class="btn btn-primary">Register</a>
             </div>
+            <div class="profile-dropdown" id="profileDropdown" style="display:none;">
+            <button class="btn btn-primary" onclick="toggleDropdown()">Profile ▾</button>
+            <div class="dropdown-menu" id="dropdownMenu" style="display:none;">
+                <a onclick="switchRole('user')">Switch to Attending</a>
+                <a onclick="switchRole('artist')">Switch to Performing</a>
+                <a href="profile.html">View Profile</a>
+            </div>
+            </div> 
         </nav>
     </header>
 

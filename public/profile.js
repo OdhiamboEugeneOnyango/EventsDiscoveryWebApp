@@ -4,7 +4,8 @@
 const API_BASE_URL = 'http://localhost:3000/api';
 
 // profile.js (frontend)
-let authToken = localStorage.getItem('authToken');
+const authToken = getAuthToken(); // instead of localStorage.getItem('authToken')
+
 
 async function checkAuth() {
   if (!authToken) {
@@ -16,7 +17,7 @@ async function checkAuth() {
   try {
     // Verify token with backend
     const response = await fetch('/api/auth/verify', {
-      headers: { 'Authorization': `Bearer ${authToken}` }
+      headers: { 'Authorization': `Bearer ${getAuthToken()}` }
     });
     
     if (!response.ok) {
@@ -36,7 +37,7 @@ async function checkAuth() {
 async function loadProfile() {
   try {
     const response = await fetch('/api/auth/profile', {
-      headers: { 'Authorization': `Bearer ${authToken}` }
+      headers: { 'Authorization': `Bearer ${getAuthToken()}` }
     });
     
     const data = await response.json();
@@ -82,7 +83,7 @@ async function handleLogin(event) {
 }
 // Utility function to get auth token
 function getAuthToken() {
-    return localStorage.getItem('eventhub_token') || sessionStorage.getItem('eventhub_token');
+    return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
 }
 
 // Get current user from API with proper error handling
@@ -100,7 +101,7 @@ async function getCurrentUser() {
         const response = await fetch(`${API_BASE_URL}/auth/profile`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${token}`,
+                'Authorization': `Bearer ${getAuthToken()}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -111,7 +112,7 @@ async function getCurrentUser() {
             if (response.status === 401) {
                 console.log('Token expired or invalid');
                 // Token is invalid, remove it and redirect
-                localStorage.removeItem('eventhub_token');
+                localStorage.removeItem('authToken');
                 sessionStorage.removeItem('eventhub_user');
                 window.location.href = 'login.html';
                 return null;
@@ -631,7 +632,7 @@ async function updateProfile(profileData) {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${getAuthToken()}`
             },
             body: JSON.stringify(profileData)
         });
@@ -663,7 +664,7 @@ async function updateProfile(profileData) {
         if (!response.ok) {
             if (response.status === 401) {
                 // Token expired or invalid
-                localStorage.removeItem('eventhub_token');
+                localStorage.removeItem('authToken');
                 sessionStorage.removeItem('eventhub_user');
                 throw new Error('Session expired. Please log in again.');
             } else if (response.status === 400) {
@@ -1387,7 +1388,13 @@ function closeModal() {
         }
         
         // Initialize when the page loads
-        window.onload = initProfile;
+        window.onload = async function () {
+        const isAuth = await checkAuth();
+        if (!isAuth) return;
+
+        await loadProfile(); // fetch user + render UI
+        };
+
    
 document.getElementById('profileForm').addEventListener('submit', function(e) {
     e.preventDefault();

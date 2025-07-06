@@ -1,17 +1,81 @@
 // Global variable to store events
 let currentEvents = [];
 
+// DOMContentLoaded event
+document.addEventListener('DOMContentLoaded', () => {
+    loadEvents();
+    setupRoleAwareUI();
+
+    // Set up search/filter event listeners
+    document.getElementById('searchInput').addEventListener('input', performSearch);
+    document.getElementById('category').addEventListener('change', performSearch);
+    document.getElementById('location').addEventListener('change', performSearch);
+    document.getElementById('date').addEventListener('change', performSearch);
+    document.getElementById('price').addEventListener('change', performSearch);
+});
+
+// Show/hide login/signup or profile dropdown based on auth
+function setupRoleAwareUI() {
+    const token = localStorage.getItem('eventhub_token') || sessionStorage.getItem('eventhub_token');
+    const currentRole = localStorage.getItem('currentRole');
+    const isLoggedIn = !!token;
+
+    const authButtons = document.querySelector('.auth-buttons');
+    const profileDropdown = document.getElementById('profileDropdown');
+    const artistLink = document.querySelector('.artist-link');
+    const organizerLink = document.querySelector('.organizer-link');
+
+    if (isLoggedIn && currentRole) {
+        authButtons.style.display = 'none';
+        profileDropdown.style.display = 'inline-block';
+
+        if (currentRole === 'artist') {
+            artistLink.style.display = 'inline-block';
+            organizerLink.style.display = 'none';
+        } else if (currentRole === 'organizer') {
+            organizerLink.style.display = 'inline-block';
+            artistLink.style.display = 'none';
+        } else {
+            // Attendees or admins may see both options if needed
+            artistLink.style.display = 'inline-block';
+            organizerLink.style.display = 'inline-block';
+        }
+    } else {
+        authButtons.style.display = 'flex';
+        profileDropdown.style.display = 'none';
+        artistLink.style.display = 'none';
+        organizerLink.style.display = 'none';
+    }
+}
+
+// Dropdown toggle
+function toggleDropdown() {
+    const dropdown = document.getElementById('dropdownMenu');
+    dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+}
+
+// Switch roles and redirect
+function switchRole(role) {
+    localStorage.setItem('currentRole', role);
+
+    const redirects = {
+        user: 'index.html',
+        artist: 'artist.html',
+        organizer: 'organizer.html',
+        admin: 'admin.html'
+    };
+
+    window.location.href = redirects[role] || 'index.html';
+}
+
 // Load events from backend API
 async function loadEvents() {
     try {
-        showLoader(); // Show loading indicator
-        
+        showLoader();
         const response = await fetch('/api/events');
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
         const data = await response.json();
 
         if (data.success && data.events) {
@@ -29,7 +93,6 @@ async function loadEvents() {
                 organizer: event.organizer || {},
                 status: event.status || 'active'
             }));
-            
             displayEvents(currentEvents);
         } else {
             showError('Failed to load events');
@@ -38,21 +101,18 @@ async function loadEvents() {
         console.error('Error loading events:', error);
         showError('Error loading events. Please try again later.');
     } finally {
-        hideLoader(); // Hide loading indicator
+        hideLoader();
     }
 }
 
-// Display events in the grid
+// Render events in the grid
 function displayEvents(events) {
     const eventGrid = document.getElementById('eventGrid');
-    
+
     if (!events || events.length === 0) {
         eventGrid.innerHTML = `
             <div class="no-events">
                 <p>No events found</p>
-                ${currentUser?.role === 'organizer' ? 
-                    '<button class="btn" onclick="showCreateEventModal()">Create Your First Event</button>' : 
-                    '<p>Check back later for upcoming events</p>'}
             </div>
         `;
         return;
@@ -61,11 +121,9 @@ function displayEvents(events) {
     eventGrid.innerHTML = events.map(event => `
         <div class="event-card" onclick="viewEventDetails('${event.id}')">
             <div class="event-image">
-                ${event.image ? 
-                    `<img src="${event.image}" alt="${event.title}">` : 
-                    `<div class="event-icon">${getCategoryIcon(event.category)}</div>`}
-                ${event.status !== 'active' ? 
-                    `<div class="event-status ${event.status}">${event.status.toUpperCase()}</div>` : ''}
+                ${event.image ? `<img src="${event.image}" alt="${event.title}">`
+                              : `<div class="event-icon">${getCategoryIcon(event.category)}</div>`}
+                ${event.status !== 'active' ? `<div class="event-status ${event.status}">${event.status.toUpperCase()}</div>` : ''}
             </div>
             <div class="event-content">
                 <h3 class="event-title">${escapeHtml(event.title)}</h3>
@@ -85,7 +143,12 @@ function displayEvents(events) {
     `).join('');
 }
 
-// Helper function to get category icon
+// Redirect to event details page
+function viewEventDetails(eventId) {
+    window.location.href = `event-details.html?id=${eventId}`;
+}
+
+// Return icon based on category
 function getCategoryIcon(category) {
     const icons = {
         music: '🎵',
@@ -100,20 +163,19 @@ function getCategoryIcon(category) {
     return icons[category?.toLowerCase()] || icons.default;
 }
 
-// Helper function to get default event image based on category
+// Fallback image
 function getDefaultEventImage(category) {
-    // In a real app, you might have default images for each category
     return `/images/default-${category || 'event'}.jpg`;
 }
 
-// Helper function to escape HTML
+// Escape potentially unsafe text
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// Format date for display
+// Format date to readable string
 function formatDate(dateString) {
     try {
         const date = new Date(dateString);
@@ -128,104 +190,63 @@ function formatDate(dateString) {
     }
 }
 
-// View event details - redirect to event page
-function viewEventDetails(eventId) {
-    window.location.href = `event-details.html?id=${eventId}`;
-}
-
-// Search and filter events
+// Search & Filter logic
 function performSearch() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const category = document.getElementById('categoryFilter').value;
-    const location = document.getElementById('locationFilter').value;
-    const dateRange = document.getElementById('dateFilter').value;
-    
+    const category = document.getElementById('category').value;
+    const location = document.getElementById('location').value;
+    const date = document.getElementById('date').value;
+    const price = document.getElementById('price').value;
+
     let filteredEvents = currentEvents.filter(event => {
-        // Text search
-        const matchesSearch = !searchTerm || 
+        const matchesSearch = !searchTerm || (
             event.title.toLowerCase().includes(searchTerm) ||
             event.description.toLowerCase().includes(searchTerm) ||
-            event.venue.toLowerCase().includes(searchTerm);
-        
-        // Category filter
+            event.venue.toLowerCase().includes(searchTerm)
+        );
+
         const matchesCategory = !category || event.category === category;
-        
-        // Location filter
-        const matchesLocation = !location || 
-            event.location.toLowerCase().includes(location.toLowerCase()) ||
-            event.venue.toLowerCase().includes(location.toLowerCase());
-        
-        // Date filter
-        const matchesDate = filterByDate(event.date, dateRange);
-        
-        return matchesSearch && matchesCategory && matchesLocation && matchesDate;
+        const matchesLocation = !location || event.location.toLowerCase().includes(location.toLowerCase());
+        const matchesDate = !date || event.date.includes(date);
+        const matchesPrice = filterByPrice(event.price, price);
+
+        return matchesSearch && matchesCategory && matchesLocation && matchesDate && matchesPrice;
     });
-    
+
     displayEvents(filteredEvents);
 }
 
-// Filter events by date range
-function filterByDate(eventDate, range) {
-    if (!range) return true;
-    
-    try {
-        const date = new Date(eventDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        switch(range) {
-            case 'today':
-                return date.toDateString() === today.toDateString();
-            case 'week':
-                const nextWeek = new Date(today);
-                nextWeek.setDate(nextWeek.getDate() + 7);
-                return date >= today && date <= nextWeek;
-            case 'month':
-                const nextMonth = new Date(today);
-                nextMonth.setMonth(nextMonth.getMonth() + 1);
-                return date >= today && date <= nextMonth;
-            case 'upcoming':
-                return date >= today;
-            default:
-                return true;
-        }
-    } catch {
-        return true;
+// Match price filter to event price
+function filterByPrice(eventPrice, filterValue) {
+    if (!filterValue) return true;
+    const numeric = parseInt(eventPrice.replace(/[^\d]/g, '')) || 0;
+
+    switch (filterValue) {
+        case 'free': return numeric === 0;
+        case '0-1000': return numeric <= 1000;
+        case '1000-5000': return numeric > 1000 && numeric <= 5000;
+        case '5000+': return numeric > 5000;
+        default: return true;
     }
 }
 
-// Initialize page
-document.addEventListener('DOMContentLoaded', () => {
-    loadEvents();
-    
-    // Set up event listeners
-    document.getElementById('searchInput').addEventListener('input', performSearch);
-    document.getElementById('categoryFilter').addEventListener('change', performSearch);
-    document.getElementById('locationFilter').addEventListener('change', performSearch);
-    document.getElementById('dateFilter').addEventListener('change', performSearch);
-    
-    // Quick filter buttons
-    document.querySelectorAll('.quick-filter').forEach(button => {
-        button.addEventListener('click', function() {
-            const category = this.dataset.category;
-            document.getElementById('categoryFilter').value = category;
-            performSearch();
-        });
-    });
-});
-
-// UI Helper functions
+// UI loading indicator
 function showLoader() {
-    document.getElementById('loadingIndicator').style.display = 'block';
+    const loader = document.getElementById('loadingIndicator');
+    if (loader) loader.style.display = 'block';
 }
 
 function hideLoader() {
-    document.getElementById('loadingIndicator').style.display = 'none';
+    const loader = document.getElementById('loadingIndicator');
+    if (loader) loader.style.display = 'none';
 }
 
+// Show error on screen
 function showError(message) {
     const errorElement = document.getElementById('errorMessage');
-    errorElement.textContent = message;
-    errorElement.style.display = 'block';
-    setTimeout(() => errorElement.style.display = 'none', 5000);
+    if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.style.display = 'block';
+        setTimeout(() => errorElement.style.display = 'none', 5000);
+    }
 }
